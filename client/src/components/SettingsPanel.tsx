@@ -180,18 +180,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           <div className="border-t border-border pt-6 space-y-4">
             <h3 className="text-sm font-semibold text-foreground">Counter Settings</h3>
 
-            {/* SOBER Counter Settings */}
+            {/* Card 1 Settings */}
             <div className="space-y-3 p-3 bg-muted rounded-lg">
+              <h4 className="text-sm font-medium text-foreground">Card 1</h4>
+
               <label className="text-xs font-medium text-foreground block">
-                [SOBER] Label
+                Card 1 Label
               </label>
               <input
                 type="text"
-                value={tempCounterSettings.soberLabel}
+                value={tempCounterSettings.card1Label}
                 onChange={(e) =>
                   setTempCounterSettings({
                     ...tempCounterSettings,
-                    soberLabel: e.target.value,
+                    card1Label: e.target.value,
                   })
                 }
                 className="w-full px-2 py-1 bg-background border border-border rounded-lg text-foreground text-sm"
@@ -200,11 +202,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               <label className="text-xs font-medium text-foreground block mt-2">
                 <input
                   type="checkbox"
-                  checked={tempCounterSettings.soberCountdownMode}
+                  checked={tempCounterSettings.card1CountdownMode}
                   onChange={(e) =>
                     setTempCounterSettings({
                       ...tempCounterSettings,
-                      soberCountdownMode: e.target.checked,
+                      card1CountdownMode: e.target.checked,
                     })
                   }
                   className="mr-2"
@@ -212,18 +214,18 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 Countdown Mode
               </label>
 
-              {tempCounterSettings.soberCountdownMode && (
+              {tempCounterSettings.card1CountdownMode && (
                 <div>
                   <label className="text-xs font-medium text-foreground block mb-1">
                     Target Days
                   </label>
                   <input
                     type="number"
-                    value={tempCounterSettings.soberCountdownTarget}
+                    value={tempCounterSettings.card1CountdownTarget}
                     onChange={(e) =>
                       setTempCounterSettings({
                         ...tempCounterSettings,
-                        soberCountdownTarget: Math.max(0, Number(e.target.value)),
+                        card1CountdownTarget: Math.max(0, Number(e.target.value)),
                       })
                     }
                     className="w-full px-2 py-1 bg-background border border-border rounded-lg text-foreground text-sm"
@@ -232,7 +234,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               )}
 
               <div className="border-t border-border pt-3 mt-3">
-                <label className="text-sm font-medium text-foreground block mb-2">Background Image</label>
+                <label className="text-sm font-medium text-foreground block mb-2">Card 1 Image</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 border border-border rounded-lg bg-muted/30">
                   {[
                     { id: 'original-sober', name: 'Original Sober', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/sober-background-bDFkU7TWD7dBBJfyHkpZHT.webp' },
@@ -251,17 +253,17 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       onClick={() =>
                         setTempCounterSettings({
                           ...tempCounterSettings,
-                          soberBackgroundImage: bg.url,
+                          card1BackgroundImage: bg.url,
                         })
                       }
-                      className={`relative h-16 rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${tempCounterSettings.soberBackgroundImage === bg.url
+                      className={`relative h-16 rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${tempCounterSettings.card1BackgroundImage === bg.url
                         ? 'border-accent ring-2 ring-accent'
                         : 'border-border hover:border-accent/50'
                         }`}
                       title={bg.name}
                     >
                       <img src={bg.url} alt={bg.name} className="w-full h-full object-cover" />
-                      {tempCounterSettings.soberBackgroundImage === bg.url && (
+                      {tempCounterSettings.card1BackgroundImage === bg.url && (
                         <div className="absolute inset-0 bg-accent/20 flex items-center justify-center">
                           <span className="text-white font-bold">✓</span>
                         </div>
@@ -274,18 +276,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
             </div>
 
-            {/* HEALTHY LUNGS Counter Settings */}
+            {/* Card 2 Settings */}
             <div className="space-y-3 p-3 bg-muted rounded-lg">
+              <h4 className="text-sm font-medium text-foreground">Card 2</h4>
+
               <label className="text-xs font-medium text-foreground block">
-                [HEALTHY LUNGS] Label
+                Card 2 Label
               </label>
               <input
                 type="text"
-                value={tempCounterSettings.healthyLungsLabel}
+                value={tempCounterSettings.card2Label}
                 onChange={(e) =>
                   setTempCounterSettings({
                     ...tempCounterSettings,
-                    healthyLungsLabel: e.target.value,
+                    card2Label: e.target.value,
                   })
                 }
                 className="w-full px-2 py-1 bg-background border border-border rounded-lg text-foreground text-sm"
@@ -294,11 +298,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               <label className="text-xs font-medium text-foreground block mt-2">
                 <input
                   type="checkbox"
-                  checked={tempCounterSettings.healthyLungsCountdownMode}
+                  checked={tempCounterSettings.card2CountdownMode}
                   onChange={(e) =>
                     setTempCounterSettings({
                       ...tempCounterSettings,
-                      healthyLungsCountdownMode: e.target.checked,
+                      card2CountdownMode: e.target.checked,
                     })
                   }
                   className="mr-2"
@@ -306,18 +310,18 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 Countdown Mode
               </label>
 
-              {tempCounterSettings.healthyLungsCountdownMode && (
+              {tempCounterSettings.card2CountdownMode && (
                 <div>
                   <label className="text-xs font-medium text-foreground block mb-1">
                     Target Days
                   </label>
                   <input
                     type="number"
-                    value={tempCounterSettings.healthyLungsCountdownTarget}
+                    value={tempCounterSettings.card2CountdownTarget}
                     onChange={(e) =>
                       setTempCounterSettings({
                         ...tempCounterSettings,
-                        healthyLungsCountdownTarget: Math.max(0, Number(e.target.value)),
+                        card2CountdownTarget: Math.max(0, Number(e.target.value)),
                       })
                     }
                     className="w-full px-2 py-1 bg-background border border-border rounded-lg text-foreground text-sm"
@@ -328,7 +332,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
 
               <div className="border-t border-border pt-3 mt-3">
-                <label className="text-sm font-medium text-foreground block mb-2">Background Image</label>
+                <label className="text-sm font-medium text-foreground block mb-2">Card 2 Image</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 border border-border rounded-lg bg-muted/30">
                   {[
                     { id: 'original-sober', name: 'Original Sober', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/sober-background-bDFkU7TWD7dBBJfyHkpZHT.webp' },
@@ -347,17 +351,17 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       onClick={() =>
                         setTempCounterSettings({
                           ...tempCounterSettings,
-                          healthyLungsBackgroundImage: bg.url,
+                          card2BackgroundImage: bg.url,
                         })
                       }
-                      className={`relative h-16 rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${tempCounterSettings.healthyLungsBackgroundImage === bg.url
+                      className={`relative h-16 rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${tempCounterSettings.card2BackgroundImage === bg.url
                         ? 'border-accent ring-2 ring-accent'
                         : 'border-border hover:border-accent/50'
                         }`}
                       title={bg.name}
                     >
                       <img src={bg.url} alt={bg.name} className="w-full h-full object-cover" />
-                      {tempCounterSettings.healthyLungsBackgroundImage === bg.url && (
+                      {tempCounterSettings.card2BackgroundImage === bg.url && (
                         <div className="absolute inset-0 bg-accent/20 flex items-center justify-center">
                           <span className="text-white font-bold">✓</span>
                         </div>

@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 
 interface CounterSparkleAnimationProps {
   isActive: boolean;
-  counterType: 'sober' | 'healthyLungs';
+  counterType: 'card1' | 'card2';
   onComplete: () => void;
 }
 
 const MOTIVATIONAL_QUOTES = {
-  sober: [
+  card1: [
     'Every day sober is a victory. You are reclaiming your power and your future.',
     'Sobriety is not about deprivation—it\'s about liberation. You are choosing freedom.',
     'Your commitment to sobriety is a gift to yourself and everyone who loves you.',
@@ -16,7 +16,7 @@ const MOTIVATIONAL_QUOTES = {
     'Sobriety is the foundation of your best self. Keep building.',
     'Your future is brighter than your past. Stay the course.',
   ],
-  healthyLungs: [
+  card2: [
     'Every breath you take is a gift to your future self. You are investing in your health.',
     'Your lungs are healing with every smoke-free day. You are choosing vitality.',
     'Clean lungs mean more energy, more life, more moments with those you love.',

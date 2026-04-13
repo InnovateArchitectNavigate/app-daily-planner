@@ -2,23 +2,18 @@ import { useDailyPlanner } from '@/hooks/useDailyPlanner';
 import { useState } from 'react';
 import { CounterSparkleAnimation } from './CounterSparkleAnimation';
 
-const BACKGROUND_IMAGES = {
-  sober: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/sober-background-bDFkU7TWD7dBBJfyHkpZHT.webp',
-  healthyLungs: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/healthy-lungs-background-eKXsr288wJwJ6wEvGSPAir.webp',
-};
-
 export function CounterCards() {
-  const { counters, updateCounter } = useDailyPlanner();
-  const [editingKey, setEditingKey] = useState<'sober' | 'healthyLungs' | null>(null);
+  const { counters, settings, updateCounter } = useDailyPlanner();
+  const [editingKey, setEditingKey] = useState<'card1' | 'card2' | null>(null);
   const [inputValue, setInputValue] = useState('');
-  const [animatingCounter, setAnimatingCounter] = useState<'sober' | 'healthyLungs' | null>(null);
+  const [animatingCounter, setAnimatingCounter] = useState<'card1' | 'card2' | null>(null);
 
-  const handleEdit = (key: 'sober' | 'healthyLungs') => {
+  const handleEdit = (key: 'card1' | 'card2') => {
     setEditingKey(key);
     setInputValue(String(counters[key]));
   };
 
-  const handleSave = (key: 'sober' | 'healthyLungs') => {
+  const handleSave = (key: 'card1' | 'card2') => {
     const value = parseInt(inputValue, 10);
     if (!isNaN(value) && value !== counters[key]) {
       updateCounter(key, value);
@@ -27,7 +22,7 @@ export function CounterCards() {
     setEditingKey(null);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent, key: 'sober' | 'healthyLungs') => {
+  const handleKeyDown = (e: React.KeyboardEvent, key: 'card1' | 'card2') => {
     if (e.key === 'Enter') {
       handleSave(key);
     } else if (e.key === 'Escape') {
@@ -38,22 +33,22 @@ export function CounterCards() {
   return (
     <>
       <CounterSparkleAnimation
-        isActive={animatingCounter === 'sober'}
-        counterType="sober"
+        isActive={animatingCounter === 'card1'}
+        counterType="card1"
         onComplete={() => setAnimatingCounter(null)}
       />
       <CounterSparkleAnimation
-        isActive={animatingCounter === 'healthyLungs'}
-        counterType="healthyLungs"
+        isActive={animatingCounter === 'card2'}
+        counterType="card2"
         onComplete={() => setAnimatingCounter(null)}
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-      {/* SOBER Counter */}
+      {/* Card 1 */}
       <div
-        onClick={() => handleEdit('sober')}
+        onClick={() => handleEdit('card1')}
         className="relative p-3 sm:p-4 rounded-2xl bg-card border-2 border-border hover:border-accent/50 transition-all duration-200 cursor-pointer group overflow-hidden"
         style={{
-          backgroundImage: `url(${BACKGROUND_IMAGES.sober})`,
+          backgroundImage: `url(${settings.counterSettings.card1BackgroundImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
@@ -63,17 +58,17 @@ export function CounterCards() {
 
         {/* Content */}
         <div className="relative z-10">
-          {editingKey === 'sober' ? (
+          {editingKey === 'card1' ? (
             <div className="space-y-2">
               <label className="text-xs font-medium text-white/90">
-                [SOBER]
+                {settings.counterSettings.card1Label}
               </label>
               <input
                 type="number"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, 'sober')}
-                onBlur={() => handleSave('sober')}
+                onKeyDown={(e) => handleKeyDown(e, 'card1')}
+                onBlur={() => handleSave('card1')}
                 autoFocus
                 className="w-full px-2 py-1 bg-white/20 backdrop-blur border border-white/30 rounded-lg text-white text-center font-bold text-lg"
               />
@@ -81,10 +76,10 @@ export function CounterCards() {
           ) : (
             <div className="text-center">
               <p className="text-xs font-medium text-white/90 mb-1">
-                [SOBER]
+                {settings.counterSettings.card1Label}
               </p>
               <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-white group-hover:text-yellow-200 transition-colors">
-                {counters.sober}
+                {counters.card1}
               </p>
               <p className="text-xs sm:text-sm text-white/80 mt-1">days</p>
             </div>
@@ -92,12 +87,12 @@ export function CounterCards() {
         </div>
       </div>
 
-      {/* HEALTHY LUNGS Counter */}
+      {/* Card 2 */}
       <div
-        onClick={() => handleEdit('healthyLungs')}
+        onClick={() => handleEdit('card2')}
         className="relative p-3 sm:p-4 rounded-2xl bg-card border-2 border-border hover:border-accent/50 transition-all duration-200 cursor-pointer group overflow-hidden"
         style={{
-          backgroundImage: `url(${BACKGROUND_IMAGES.healthyLungs})`,
+          backgroundImage: `url(${settings.counterSettings.card2BackgroundImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
@@ -107,17 +102,17 @@ export function CounterCards() {
 
         {/* Content */}
         <div className="relative z-10">
-          {editingKey === 'healthyLungs' ? (
+          {editingKey === 'card2' ? (
             <div className="space-y-2">
               <label className="text-xs font-medium text-white/90">
-                [HEALTHY LUNGS]
+                {settings.counterSettings.card2Label}
               </label>
               <input
                 type="number"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, 'healthyLungs')}
-                onBlur={() => handleSave('healthyLungs')}
+                onKeyDown={(e) => handleKeyDown(e, 'card2')}
+                onBlur={() => handleSave('card2')}
                 autoFocus
                 className="w-full px-2 py-1 bg-white/20 backdrop-blur border border-white/30 rounded-lg text-white text-center font-bold text-lg"
               />
@@ -125,10 +120,10 @@ export function CounterCards() {
           ) : (
             <div className="text-center">
               <p className="text-xs font-medium text-white/90 mb-1">
-                [HEALTHY LUNGS]
+                {settings.counterSettings.card2Label}
               </p>
               <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-white group-hover:text-cyan-200 transition-colors">
-                {counters.healthyLungs}
+                {counters.card2}
               </p>
               <p className="text-xs sm:text-sm text-white/80 mt-1">days</p>
             </div>

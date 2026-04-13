@@ -21,17 +21,19 @@ export interface DayData {
 }
 
 export interface CounterData {
-  sober: number;
-  healthyLungs: number;
+  card1: number;
+  card2: number;
 }
 
 export interface CounterSettings {
-  soberLabel: string;
-  soberCountdownMode: boolean;
-  soberCountdownTarget: number;
-  healthyLungsLabel: string;
-  healthyLungsCountdownMode: boolean;
-  healthyLungsCountdownTarget: number;
+  card1Label: string;
+  card1CountdownMode: boolean;
+  card1CountdownTarget: number;
+  card2Label: string;
+  card2CountdownMode: boolean;
+  card2CountdownTarget: number;
+  card1BackgroundImage: string;
+  card2BackgroundImage: string;
 }
 
 export interface SettingsData {
@@ -69,24 +71,45 @@ const defaultSettings: SettingsData = {
   sleepModeTimeout: 300,
   celebrationStyle: 'particles',
   counterSettings: {
-    soberLabel: '[SOBER]',
-    soberCountdownMode: false,
-    soberCountdownTarget: 0,
-    healthyLungsLabel: '[HEALTHY LUNGS]',
-    healthyLungsCountdownMode: false,
-    healthyLungsCountdownTarget: 0,
+    card1Label: '[SOBER]',
+    card1CountdownMode: false,
+    card1CountdownTarget: 0,
+    card2Label: '[HEALTHY LUNGS]',
+    card2CountdownMode: false,
+    card2CountdownTarget: 0,
+    card1BackgroundImage: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/sober-background-bDFkU7TWD7dBBJfyHkpZHT.webp',
+    card2BackgroundImage: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/healthy-lungs-background-eKXsr288wJwJ6wEvGSPAir.webp',
   },
 };
 
 const DailyPlannerContext = createContext<DailyPlannerContextValue | null>(null);
 
 function normalizeStoredSettings(storedSettings: Partial<SettingsData>): SettingsData {
+  const storedCounterSettings = storedSettings.counterSettings as Partial<CounterSettings> & {
+    soberLabel?: string;
+    soberCountdownMode?: boolean;
+    soberCountdownTarget?: number;
+    healthyLungsLabel?: string;
+    healthyLungsCountdownMode?: boolean;
+    healthyLungsCountdownTarget?: number;
+    soberBackgroundImage?: string;
+    healthyLungsBackgroundImage?: string;
+  };
+
   const mergedSettings: SettingsData = {
     ...defaultSettings,
     ...storedSettings,
     counterSettings: {
       ...defaultSettings.counterSettings,
-      ...storedSettings.counterSettings,
+      ...storedCounterSettings,
+      card1Label: storedCounterSettings?.card1Label ?? storedCounterSettings?.soberLabel ?? defaultSettings.counterSettings.card1Label,
+      card1CountdownMode: storedCounterSettings?.card1CountdownMode ?? storedCounterSettings?.soberCountdownMode ?? defaultSettings.counterSettings.card1CountdownMode,
+      card1CountdownTarget: storedCounterSettings?.card1CountdownTarget ?? storedCounterSettings?.soberCountdownTarget ?? defaultSettings.counterSettings.card1CountdownTarget,
+      card2Label: storedCounterSettings?.card2Label ?? storedCounterSettings?.healthyLungsLabel ?? defaultSettings.counterSettings.card2Label,
+      card2CountdownMode: storedCounterSettings?.card2CountdownMode ?? storedCounterSettings?.healthyLungsCountdownMode ?? defaultSettings.counterSettings.card2CountdownMode,
+      card2CountdownTarget: storedCounterSettings?.card2CountdownTarget ?? storedCounterSettings?.healthyLungsCountdownTarget ?? defaultSettings.counterSettings.card2CountdownTarget,
+      card1BackgroundImage: storedCounterSettings?.card1BackgroundImage ?? storedCounterSettings?.soberBackgroundImage ?? defaultSettings.counterSettings.card1BackgroundImage,
+      card2BackgroundImage: storedCounterSettings?.card2BackgroundImage ?? storedCounterSettings?.healthyLungsBackgroundImage ?? defaultSettings.counterSettings.card2BackgroundImage,
     },
   };
 
@@ -100,7 +123,7 @@ function normalizeStoredSettings(storedSettings: Partial<SettingsData>): Setting
 
 function useDailyPlannerState(): DailyPlannerContextValue {
   const [data, setData] = useState<PlannerData>({});
-  const [counters, setCounters] = useState<CounterData>({ sober: 0, healthyLungs: 0 });
+  const [counters, setCounters] = useState<CounterData>({ card1: 0, card2: 0 });
   const [tasks, setTasks] = useState<string[]>(TASKS);
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -119,7 +142,14 @@ function useDailyPlannerState(): DailyPlannerContextValue {
     const storedCounters = localStorage.getItem(COUNTER_STORAGE_KEY);
     if (storedCounters) {
       try {
-        setCounters(JSON.parse(storedCounters));
+        const parsedCounters = JSON.parse(storedCounters) as Partial<CounterData> & {
+          sober?: number;
+          healthyLungs?: number;
+        };
+        setCounters({
+          card1: parsedCounters.card1 ?? parsedCounters.sober ?? 0,
+          card2: parsedCounters.card2 ?? parsedCounters.healthyLungs ?? 0,
+        });
       } catch (e) {
         console.error('Failed to parse stored counters:', e);
       }
