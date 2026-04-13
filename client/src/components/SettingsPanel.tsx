@@ -1,15 +1,45 @@
 import { useDailyPlanner, CounterSettings } from '@/hooks/useDailyPlanner';
 import { Button } from '@/components/ui/button';
-import { X, Settings, Plus } from 'lucide-react';
+import { X, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { CelebrationStyleSelector } from './CelebrationStyleSelector';
 import { CelebrationStyle } from './CelebrationVariants';
-import TaskEditor from './TaskEditor';
 
 interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const COUNTER_BACKGROUND_OPTIONS = [
+  { id: 'original-sober', name: 'Original Sober', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/sober-background-bDFkU7TWD7dBBJfyHkpZHT.webp' },
+  { id: 'original-healthy', name: 'Original Healthy', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/healthy-lungs-background-eKXsr288wJwJ6wEvGSPAir.webp' },
+  { id: 'mountain-sunrise-1', name: 'Mountain Sunrise 1', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-mountain-sunrise-1_2930b4b1.jpg' },
+  { id: 'mountain-sunrise-2', name: 'Mountain Sunrise 2', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-mountain-sunrise-2_208d2bbc.jpg' },
+  { id: 'mountain-sunrise-3', name: 'Mountain Sunrise 3', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-mountain-sunrise-3_cb38b70a.jpg' },
+  { id: 'sunset-beach-1', name: 'Sunset Beach 1', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-sunset-beach-1_f3234b09.jpg' },
+  { id: 'sunset-beach-2', name: 'Sunset Beach 2', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-sunset-beach-2_17fa3b57.jpg' },
+  { id: 'sunset-beach-3', name: 'Sunset Beach 3', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-sunset-beach-3_81b2c40c.jpg' },
+  { id: 'forest-peaceful-1', name: 'Forest Peaceful 1', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-forest-peaceful-1_a7b41145.jpg' },
+  { id: 'forest-peaceful-2', name: 'Forest Peaceful 2', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-forest-peaceful-2_b1f6d81d.jpg' },
+  { id: 'game-dev-neon-desk', name: 'Game Dev Neon Desk', url: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'game-dev-code-screen', name: 'Game Dev Code Screen', url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'retro-arcade-room', name: 'Retro Arcade Room', url: 'https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'controller-neon', name: 'Controller Neon', url: 'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'pixel-workstation', name: 'Pixel Workstation', url: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'indie-studio', name: 'Indie Studio', url: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'night-city-rain', name: 'Night City Rain', url: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'city-sunset-glass', name: 'City Sunset Glass', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'skyline-blue-hour', name: 'Skyline Blue Hour', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80&sat=-20' },
+  { id: 'cyberpunk-street', name: 'Cyberpunk Street', url: 'https://images.unsplash.com/photo-1520034475321-cbe63696469a?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'city-lights-tower', name: 'City Lights Tower', url: 'https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'skyline-aerial', name: 'Skyline Aerial', url: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'dance-floor-lights', name: 'Dance Floor Lights', url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'celebration-balloons', name: 'Celebration Balloons', url: 'https://images.unsplash.com/photo-1531058020387-3be344556be6?auto=format&fit=crop&w=1200&q=80' },
+  // { id: 'festival-fireworks', name: 'Festival Fireworks', url: 'https://images.unsplash.com/photo-1504198453319-5ce911bafcde?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'neon-party-illustration', name: 'Neon Party Illustration', url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80' },
+  { id: 'confetti-crowd', name: 'Confetti Crowd', url: 'https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=1200&q=80' },
+  // { id: 'game-jam-team', name: 'Game Jam Team', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80' },
+];
 
 const SLEEP_TIMEOUT_PRESETS = [
   { value: 30, label: '30 sec' },
@@ -31,12 +61,10 @@ function getSleepTimeoutDisplay(seconds: number) {
 }
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
-  const { settings, updateSettings /*, tasks, updateTasks **/ } = useDailyPlanner();
+  const { settings, updateSettings } = useDailyPlanner();
   const [tempTimeout, setTempTimeout] = useState(settings.sleepModeTimeout);
   const [tempCelebrationStyle, setTempCelebrationStyle] = useState<CelebrationStyle>(settings.celebrationStyle);
   const [tempCounterSettings, setTempCounterSettings] = useState<CounterSettings>(settings.counterSettings);
-    // const [tempTasks, setTempTasks] = useState<string[]>(tasks);
-
 
   // Sync temp state with settings when panel opens or settings change
   useEffect(() => {
@@ -44,8 +72,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       setTempTimeout(settings.sleepModeTimeout);
       setTempCelebrationStyle(settings.celebrationStyle);
       setTempCounterSettings(settings.counterSettings);
-            // setTempTasks(tasks);
-
     }
   }, [isOpen, settings]);
 
@@ -53,8 +79,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     updateSettings('sleepModeTimeout', tempTimeout);
     updateSettings('celebrationStyle', tempCelebrationStyle);
     updateSettings('counterSettings', tempCounterSettings);
-    // updateTasks(tempTasks);
-
     onClose();
   };
 
@@ -62,8 +86,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     setTempTimeout(settings.sleepModeTimeout);
     setTempCelebrationStyle(settings.celebrationStyle);
     setTempCounterSettings(settings.counterSettings);
-    // updateTasks(tempTasks);
-
     onClose();
   };
 
@@ -148,6 +170,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               <div className="grid grid-cols-4 gap-2 pt-2">
                 {SLEEP_TIMEOUT_PRESETS.map((preset) => (
                   <button
+                    // type="button"
                     key={preset.value}
                     onClick={() => setTempTimeout(preset.value)}
                     className={`py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${tempTimeout === preset.value
@@ -236,19 +259,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               <div className="border-t border-border pt-3 mt-3">
                 <label className="text-sm font-medium text-foreground block mb-2">Card 1 Image</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 border border-border rounded-lg bg-muted/30">
-                  {[
-                    { id: 'original-sober', name: 'Original Sober', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/sober-background-bDFkU7TWD7dBBJfyHkpZHT.webp' },
-                    { id: 'original-healthy', name: 'Original Healthy', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/healthy-lungs-background-eKXsr288wJwJ6wEvGSPAir.webp' },
-                    { id: 'mountain-sunrise-1', name: 'Mountain Sunrise 1', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-mountain-sunrise-1_2930b4b1.jpg' },
-                    { id: 'mountain-sunrise-2', name: 'Mountain Sunrise 2', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-mountain-sunrise-2_208d2bbc.jpg' },
-                    { id: 'mountain-sunrise-3', name: 'Mountain Sunrise 3', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-mountain-sunrise-3_cb38b70a.jpg' },
-                    { id: 'sunset-beach-1', name: 'Sunset Beach 1', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-sunset-beach-1_f3234b09.jpg' },
-                    { id: 'sunset-beach-2', name: 'Sunset Beach 2', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-sunset-beach-2_17fa3b57.jpg' },
-                    { id: 'sunset-beach-3', name: 'Sunset Beach 3', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-sunset-beach-3_81b2c40c.jpg' },
-                    { id: 'forest-peaceful-1', name: 'Forest Peaceful 1', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-forest-peaceful-1_a7b41145.jpg' },
-                    { id: 'forest-peaceful-2', name: 'Forest Peaceful 2', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-forest-peaceful-2_b1f6d81d.jpg' },
-                  ].map((bg) => (
+                  {COUNTER_BACKGROUND_OPTIONS.map((bg) => (
                     <button
+                      // type="button"
                       key={bg.id}
                       onClick={() =>
                         setTempCounterSettings({
@@ -334,19 +347,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               <div className="border-t border-border pt-3 mt-3">
                 <label className="text-sm font-medium text-foreground block mb-2">Card 2 Image</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 border border-border rounded-lg bg-muted/30">
-                  {[
-                    { id: 'original-sober', name: 'Original Sober', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/sober-background-bDFkU7TWD7dBBJfyHkpZHT.webp' },
-                    { id: 'original-healthy', name: 'Original Healthy', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/healthy-lungs-background-eKXsr288wJwJ6wEvGSPAir.webp' },
-                    { id: 'mountain-sunrise-1', name: 'Mountain Sunrise 1', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-mountain-sunrise-1_2930b4b1.jpg' },
-                    { id: 'mountain-sunrise-2', name: 'Mountain Sunrise 2', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-mountain-sunrise-2_208d2bbc.jpg' },
-                    { id: 'mountain-sunrise-3', name: 'Mountain Sunrise 3', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-mountain-sunrise-3_cb38b70a.jpg' },
-                    { id: 'sunset-beach-1', name: 'Sunset Beach 1', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-sunset-beach-1_f3234b09.jpg' },
-                    { id: 'sunset-beach-2', name: 'Sunset Beach 2', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-sunset-beach-2_17fa3b57.jpg' },
-                    { id: 'sunset-beach-3', name: 'Sunset Beach 3', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-sunset-beach-3_81b2c40c.jpg' },
-                    { id: 'forest-peaceful-1', name: 'Forest Peaceful 1', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-forest-peaceful-1_a7b41145.jpg' },
-                    { id: 'forest-peaceful-2', name: 'Forest Peaceful 2', url: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/bg-forest-peaceful-2_b1f6d81d.jpg' },
-                  ].map((bg) => (
+                  {COUNTER_BACKGROUND_OPTIONS.map((bg) => (
                     <button
+                      // type="button"
                       key={bg.id}
                       onClick={() =>
                         setTempCounterSettings({
@@ -370,30 +373,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   ))}
                 </div>
               </div>
-
-
-          {/* <div className="border-t border-border pt-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">Edit Tasks ({tempTasks.length})</h3>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  const newTask = `New Task ${tempTasks.length + 1}`;
-                  setTempTasks([...tempTasks, newTask]);
-                }}
-                className="gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                Add
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Customize your daily habit-forming tasks. Click Add to create new tasks.
-            </p>
-            <TaskEditor tasks={tempTasks} onTasksChange={setTempTasks} />
-          </div> */}
-
             </div>
           </div>
         </div>
