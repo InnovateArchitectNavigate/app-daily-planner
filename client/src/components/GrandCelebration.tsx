@@ -133,7 +133,7 @@ export function GrandCelebration({ isActive, onComplete }: GrandCelebrationProps
     const drawWaterDroplet = (x: number, y: number, size: number, progress: number) => {
       // Draw water droplet outline with rainbow gradient
       const gradient = ctx.createLinearGradient(x - size, y - size, x + size, y + size);
-      
+
       // Rainbow colors
       gradient.addColorStop(0, `rgba(255, 0, 0, ${0.4 * (1 - progress)})`);
       gradient.addColorStop(0.17, `rgba(255, 127, 0, ${0.4 * (1 - progress)})`);
@@ -146,7 +146,7 @@ export function GrandCelebration({ isActive, onComplete }: GrandCelebrationProps
       ctx.strokeStyle = gradient;
       ctx.lineWidth = 3;
       ctx.beginPath();
-      
+
       // Draw water droplet shape
       ctx.moveTo(x, y - size);
       ctx.bezierCurveTo(x - size * 0.6, y - size * 0.4, x - size * 0.8, y + size * 0.3, x, y + size);
@@ -214,23 +214,23 @@ export function GrandCelebration({ isActive, onComplete }: GrandCelebrationProps
         ctx.save();
         ctx.globalAlpha = textAlpha;
         ctx.fillStyle = '#FF69B4';
-        
+
         // Responsive font sizes based on viewport
-        const baseSize = Math.min(canvas.width, canvas.height) / 8;
-        const subtitleSize = baseSize * 0.6;
-        
+        const baseSize = Math.max(28, Math.min(Math.min(canvas.width, canvas.height) * 0.08, 72));
+        const subtitleSize = Math.max(18, Math.min(baseSize * 0.5, 36));
+
         ctx.font = `bold ${baseSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        
+
         // Add subtle shadow
         ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
         ctx.shadowBlur = 15;
         ctx.shadowOffsetX = 2;
         ctx.shadowOffsetY = 2;
-        
+
         ctx.fillText('🎉 ALL TASKS COMPLETE! 🎉', canvas.width / 2, canvas.height / 2 - baseSize * 0.8);
-        
+
         ctx.font = `bold ${subtitleSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
         ctx.fillText('You are AMAZING!', canvas.width / 2, canvas.height / 2 + baseSize * 0.5);
         ctx.restore();

@@ -202,8 +202,8 @@ export function CelebrationVariants({ isActive, style, onComplete }: Celebration
         ctx.globalAlpha = textAlpha;
         ctx.fillStyle = '#FF69B4';
 
-        const baseSize = Math.min(canvas.width, canvas.height) / 8;
-        const subtitleSize = baseSize * 0.6;
+        const baseSize = Math.max(22, Math.min(Math.min(canvas.width, canvas.height) * 0.05, 80));
+        const subtitleSize = Math.max(30, Math.min(baseSize * 0.8, 36));
 
         ctx.font = `bold ${baseSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
         ctx.textAlign = 'center';
