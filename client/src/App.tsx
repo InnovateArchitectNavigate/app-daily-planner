@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { DailyPlannerProvider } from "./hooks/useDailyPlanner";
 import { useState } from "react";
 import { TodayView } from "./components/TodayView";
 import { WeekView } from "./components/WeekView";
@@ -10,18 +11,20 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light" switchable>
-        <TooltipProvider>
-          <Toaster />
-          <div className="min-h-screen bg-background">
-            {currentView === 'today' ? (
-              <TodayView onNavigateToWeek={() => setCurrentView('week')} />
-            ) : (
-              <WeekView onNavigateToToday={() => setCurrentView('today')} />
-            )}
-          </div>
-        </TooltipProvider>
-      </ThemeProvider>
+      <DailyPlannerProvider>
+        <ThemeProvider defaultTheme="light" switchable>
+          <TooltipProvider>
+            <Toaster />
+            <div className="min-h-screen bg-background">
+              {currentView === 'today' ? (
+                <TodayView onNavigateToWeek={() => setCurrentView('week')} />
+              ) : (
+                <WeekView onNavigateToToday={() => setCurrentView('today')} />
+              )}
+            </div>
+          </TooltipProvider>
+        </ThemeProvider>
+      </DailyPlannerProvider>
     </ErrorBoundary>
   );
 }

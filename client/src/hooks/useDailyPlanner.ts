@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 export const TASKS = [
   'Read / Ideate / Obsidian',
@@ -48,23 +48,61 @@ const STORAGE_KEY = 'daily-planner-data';
 const COUNTER_STORAGE_KEY = 'daily-planner-counters';
 const SETTINGS_STORAGE_KEY = 'daily-planner-settings';
 
-export function useDailyPlanner() {
+interface DailyPlannerContextValue {
+  data: PlannerData;
+  counters: CounterData;
+  updateCounter: (key: keyof CounterData, value: number) => void;
+  settings: SettingsData;
+  updateSettings: (key: keyof SettingsData, value: SettingsData[keyof SettingsData]) => void;
+  selectedDate: Date;
+  setSelectedDate: (date: Date) => void;
+  getDayData: (date: Date) => DayData;
+  toggleTask: (date: Date, taskIndex: number) => void;
+  toggleFreeDay: (date: Date) => void;
+  getWeekData: (startDate: Date) => Array<{ date: Date; completed: number; total: number; isFreeDay: boolean }>;
+  getWeekStart: (date: Date) => Date;
+  getDateKey: (date: Date) => string;
+  isLoading: boolean;
+}
+
+const defaultSettings: SettingsData = {
+  sleepModeTimeout: 300,
+  celebrationStyle: 'particles',
+  counterSettings: {
+    soberLabel: '[SOBER]',
+    soberCountdownMode: false,
+    soberCountdownTarget: 0,
+    healthyLungsLabel: '[HEALTHY LUNGS]',
+    healthyLungsCountdownMode: false,
+    healthyLungsCountdownTarget: 0,
+  },
+};
+
+const DailyPlannerContext = createContext<DailyPlannerContextValue | null>(null);
+
+function normalizeStoredSettings(storedSettings: Partial<SettingsData>): SettingsData {
+  const mergedSettings: SettingsData = {
+    ...defaultSettings,
+    ...storedSettings,
+    counterSettings: {
+      ...defaultSettings.counterSettings,
+      ...storedSettings.counterSettings,
+    },
+  };
+
+  // Migrate old minute-based values to seconds.
+  if (mergedSettings.sleepModeTimeout > 0 && mergedSettings.sleepModeTimeout <= 60) {
+    mergedSettings.sleepModeTimeout *= 60;
+  }
+
+  return mergedSettings;
+}
+
+function useDailyPlannerState(): DailyPlannerContextValue {
   const [data, setData] = useState<PlannerData>({});
   const [counters, setCounters] = useState<CounterData>({ sober: 0, healthyLungs: 0 });
   const [tasks, setTasks] = useState<string[]>(TASKS);
-
-  const [settings, setSettings] = useState<SettingsData>({
-    sleepModeTimeout: 5,
-    celebrationStyle: 'particles',
-    counterSettings: {
-      soberLabel: '[SOBER]',
-      soberCountdownMode: false,
-      soberCountdownTarget: 0,
-      healthyLungsLabel: '[HEALTHY LUNGS]',
-      healthyLungsCountdownMode: false,
-      healthyLungsCountdownTarget: 0,
-    },
-  });
+  const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(true);
 
@@ -89,7 +127,7 @@ export function useDailyPlanner() {
     const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (storedSettings) {
       try {
-        setSettings(JSON.parse(storedSettings));
+        setSettings(normalizeStoredSettings(JSON.parse(storedSettings)));
       } catch (e) {
         console.error('Failed to parse stored settings:', e);
       }
@@ -192,7 +230,7 @@ export function useDailyPlanner() {
   const updateSettings = useCallback((key: keyof SettingsData, value: any) => {
     setSettings((prev) => ({
       ...prev,
-      [key]: typeof value === 'number' ? Math.max(1, value) : value,
+      [key]: typeof value === 'number' ? Math.max(5, Math.round(value)) : value,
     }));
   }, []);
 
@@ -212,4 +250,20 @@ export function useDailyPlanner() {
     getDateKey,
     isLoading,
   };
+}
+
+export function DailyPlannerProvider({ children }: { children: ReactNode }) {
+  const value = useDailyPlannerState();
+
+  return createElement(DailyPlannerContext.Provider, { value }, children);
+}
+
+export function useDailyPlanner() {
+  const context = useContext(DailyPlannerContext);
+
+  if (!context) {
+    throw new Error('useDailyPlanner must be used within a DailyPlannerProvider');
+  }
+
+  return context;
 }

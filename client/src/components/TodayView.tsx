@@ -40,17 +40,20 @@ export function TodayView({ onNavigateToWeek }: TodayViewProps) {
 
   // Sleep mode inactivity detection
   useEffect(() => {
-    const resetSleepTimer = () => {
+    const startSleepTimer = () => {
       if (sleepTimerRef.current) {
         clearTimeout(sleepTimerRef.current);
       }
-      if (isSleepMode) {
-        setIsSleepMode(false);
-      }
-      const timeoutMs = settings.sleepModeTimeout * 60 * 1000;
+
+      const timeoutMs = settings.sleepModeTimeout * 1000;
       sleepTimerRef.current = setTimeout(() => {
         setIsSleepMode(true);
       }, timeoutMs);
+    };
+
+    const resetSleepTimer = () => {
+      setIsSleepMode(false);
+      startSleepTimer();
     };
 
     const events = ['mousedown', 'keydown', 'touchstart', 'click'];
@@ -59,7 +62,7 @@ export function TodayView({ onNavigateToWeek }: TodayViewProps) {
     });
 
     // Initial timer
-    resetSleepTimer();
+    startSleepTimer();
 
     return () => {
       events.forEach((event) => {
@@ -69,7 +72,7 @@ export function TodayView({ onNavigateToWeek }: TodayViewProps) {
         clearTimeout(sleepTimerRef.current);
       }
     };
-  }, [isSleepMode, settings.sleepModeTimeout]);
+  }, [settings.sleepModeTimeout]);
 
   const handleTaskToggle = (index: number, event?: React.MouseEvent) => {
     const wasCompleted = dayData.completed[index];

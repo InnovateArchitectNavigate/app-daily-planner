@@ -11,6 +11,25 @@ interface SettingsPanelProps {
   onClose: () => void;
 }
 
+const SLEEP_TIMEOUT_PRESETS = [
+  { value: 30, label: '30 sec' },
+  { value: 60, label: '1 min' },
+  { value: 180, label: '3 min' },
+  { value: 300, label: '5 min' },
+];
+
+function getSleepTimeoutDisplay(seconds: number) {
+  if (seconds === 30) {
+    return { value: 30, unit: 'seconds' };
+  }
+
+  const minutes = Math.round(seconds / 60);
+  return {
+    value: minutes,
+    unit: minutes === 1 ? 'minute' : 'minutes',
+  };
+}
+
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { settings, updateSettings /*, tasks, updateTasks **/ } = useDailyPlanner();
   const [tempTimeout, setTempTimeout] = useState(settings.sleepModeTimeout);
@@ -80,15 +99,16 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 Sleep Mode Timeout
               </span>
               <p className="text-xs text-muted-foreground mb-3">
-                The app will enter sleep mode after this many minutes of inactivity.
+                The app will enter sleep mode after the selected period of inactivity.
               </p>
             </label>
 
             <div className="space-y-3">
               <input
                 type="range"
-                min="1"
-                max="60"
+                min="5"
+                max="600"
+                step="5"
                 value={tempTimeout}
                 onChange={(e) => setTempTimeout(Number(e.target.value))}
                 className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-accent"
@@ -97,33 +117,45 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  min="1"
-                  max="60"
-                  value={tempTimeout}
+                  min="5"
+                  max="600"
+                  step="5"
+                  value={getSleepTimeoutDisplay(tempTimeout).value}
                   onChange={(e) => {
                     const value = Number(e.target.value);
-                    if (value >= 1 && value <= 60) {
-                      setTempTimeout(value);
+                    if (Number.isNaN(value)) {
+                      return;
+                    }
+
+                    if (tempTimeout === 30) {
+                      if (value >= 5 && value <= 59) {
+                        setTempTimeout(value);
+                      }
+                      return;
+                    }
+
+                    if (value >= 1 && value <= 10) {
+                      setTempTimeout(value * 60);
                     }
                   }}
                   className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-foreground font-medium text-center"
                 />
                 <span className="text-sm text-muted-foreground font-medium">
-                  {tempTimeout === 1 ? 'minute' : 'minutes'}
+                  {getSleepTimeoutDisplay(tempTimeout).unit}
                 </span>
               </div>
 
               <div className="grid grid-cols-4 gap-2 pt-2">
-                {[1, 3, 5, 10].map((preset) => (
+                {SLEEP_TIMEOUT_PRESETS.map((preset) => (
                   <button
-                    key={preset}
-                    onClick={() => setTempTimeout(preset)}
-                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${tempTimeout === preset
+                    key={preset.value}
+                    onClick={() => setTempTimeout(preset.value)}
+                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${tempTimeout === preset.value
                       ? 'bg-accent text-accent-foreground'
                       : 'bg-muted text-muted-foreground hover:bg-muted/80'
                       }`}
                   >
-                    {preset}m
+                    {preset.label}
                   </button>
                 ))}
               </div>
