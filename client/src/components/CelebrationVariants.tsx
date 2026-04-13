@@ -31,6 +31,7 @@ export function CelebrationVariants({ isActive, style, onComplete }: Celebration
       life: number;
       size: number;
       color: string;
+      shape: 'square' | 'circle' | 'star';
     }
 
     const particles: Particle[] = [];
@@ -58,6 +59,25 @@ export function CelebrationVariants({ isActive, style, onComplete }: Celebration
       ctx.fill();
     };
 
+    const drawWaterDroplet = (x: number, y: number, size: number, alpha: number) => {
+      const gradient = ctx.createLinearGradient(x - size, y - size, x + size, y + size);
+      gradient.addColorStop(0, `rgba(255, 0, 102, ${alpha})`);
+      gradient.addColorStop(0.25, `rgba(255, 170, 0, ${alpha})`);
+      gradient.addColorStop(0.5, `rgba(0, 220, 140, ${alpha})`);
+      gradient.addColorStop(0.75, `rgba(0, 170, 255, ${alpha})`);
+      gradient.addColorStop(1, `rgba(170, 0, 255, ${alpha})`);
+
+      ctx.save();
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = Math.max(2, size * 0.12);
+      ctx.beginPath();
+      ctx.moveTo(x, y - size);
+      ctx.bezierCurveTo(x - size * 0.7, y - size * 0.35, x - size * 0.9, y + size * 0.3, x, y + size);
+      ctx.bezierCurveTo(x + size * 0.9, y + size * 0.3, x + size * 0.7, y - size * 0.35, x, y - size);
+      ctx.stroke();
+      ctx.restore();
+    };
+
     const createFireworks = () => {
       // Create firework bursts from multiple points
       const burstPoints = [
@@ -82,6 +102,7 @@ export function CelebrationVariants({ isActive, style, onComplete }: Celebration
             life: 1,
             size: Math.random() * 10 + 4,
             color: colors[Math.floor(Math.random() * colors.length)],
+            shape: 'square',
           });
         }
       });
@@ -102,16 +123,16 @@ export function CelebrationVariants({ isActive, style, onComplete }: Celebration
           life: 1,
           size: Math.random() * 6 + 2,
           color: colors[Math.floor(Math.random() * colors.length)],
+          shape: 'square',
         });
       }
     };
 
     const createWaves = () => {
-      // Wave-like expanding rings
-      for (let ring = 0; ring < 5; ring++) {
-        for (let i = 0; i < 40; i++) {
-          const angle = (i / 40) * Math.PI * 2;
-          const speed = 3 + ring * 2;
+      for (let ring = 0; ring < 4; ring++) {
+        for (let i = 0; i < 24; i++) {
+          const angle = (i / 24) * Math.PI * 2;
+          const speed = 1.8 + ring * 1.1;
           particles.push({
             x: canvas.width / 2,
             y: canvas.height / 2,
@@ -120,8 +141,9 @@ export function CelebrationVariants({ isActive, style, onComplete }: Celebration
             rotation: angle,
             vRotation: 0,
             life: 1,
-            size: 8 - ring,
+            size: 6 - ring * 0.7,
             color: colors[ring % colors.length],
+            shape: 'circle',
           });
         }
       }
@@ -142,7 +164,29 @@ export function CelebrationVariants({ isActive, style, onComplete }: Celebration
           life: 1,
           size: Math.random() * 3 + 1,
           color: colors[Math.floor(Math.random() * colors.length)],
+          shape: 'star',
         });
+      }
+    };
+
+    const createRainbowDroplets = () => {
+      for (let ring = 0; ring < 3; ring++) {
+        for (let i = 0; i < 18; i++) {
+          const angle = (i / 18) * Math.PI * 2;
+          const speed = 2.5 + ring * 1.2;
+          particles.push({
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            rotation: angle,
+            vRotation: 0.02,
+            life: 1,
+            size: 10 - ring * 2,
+            color: colors[(i + ring) % colors.length],
+            shape: 'circle',
+          });
+        }
       }
     };
 
@@ -156,8 +200,7 @@ export function CelebrationVariants({ isActive, style, onComplete }: Celebration
     } else if (style === 'sparkles') {
       createSparkles();
     } else {
-      // Default rainbow-droplets
-      createParticles();
+      createRainbowDroplets();
     }
 
     const animate = () => {
@@ -168,11 +211,53 @@ export function CelebrationVariants({ isActive, style, onComplete }: Celebration
       ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      if (style === 'waves') {
+        const ringCount = 4;
+        for (let ring = 0; ring < ringCount; ring++) {
+          const ringProgress = Math.max(0, progress - ring * 0.08) / (1 - ring * 0.08);
+          if (ringProgress <= 0 || ringProgress >= 1) continue;
+
+          ctx.save();
+          ctx.globalAlpha = (1 - ringProgress) * 0.55;
+          ctx.strokeStyle = colors[(ring * 2) % colors.length];
+          ctx.lineWidth = 8 - ring;
+          ctx.beginPath();
+          ctx.arc(
+            canvas.width / 2,
+            canvas.height / 2,
+            60 + ringProgress * (140 + ring * 30),
+            0,
+            Math.PI * 2
+          );
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      if (style === 'rainbow-droplets') {
+        const dropletCount = 10;
+        const radius = 70 + progress * 180;
+        const dropletSize = Math.max(10, 24 - progress * 14);
+        for (let i = 0; i < dropletCount; i++) {
+          const angle = (i / dropletCount) * Math.PI * 2 + progress * 0.8;
+          drawWaterDroplet(
+            canvas.width / 2 + Math.cos(angle) * radius,
+            canvas.height / 2 + Math.sin(angle) * radius,
+            dropletSize,
+            0.8 * (1 - progress)
+          );
+        }
+      }
+
       // Update and draw particles
       for (const p of particles) {
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.2; // Gravity
+        if (style === 'fireworks' || style === 'particles') {
+          p.vy += 0.2;
+        } else if (style === 'sparkles') {
+          p.vy += 0.05;
+        }
         p.rotation += p.vRotation;
         p.life = 1 - progress;
 
@@ -182,11 +267,11 @@ export function CelebrationVariants({ isActive, style, onComplete }: Celebration
         ctx.rotate(p.rotation);
 
         ctx.fillStyle = p.color;
-        if (style === 'waves') {
+        if (p.shape === 'circle') {
           ctx.beginPath();
           ctx.arc(0, 0, p.size, 0, Math.PI * 2);
           ctx.fill();
-        } else if (style === 'sparkles') {
+        } else if (p.shape === 'star') {
           drawStar(0, 0, p.size);
         } else {
           ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
