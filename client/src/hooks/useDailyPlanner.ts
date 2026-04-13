@@ -25,6 +25,26 @@ export interface CounterData {
   card2: number;
 }
 
+export interface CounterHistory {
+  [dateKey: string]: Partial<CounterData>;
+}
+
+export interface CounterSnapshot {
+  values: CounterData;
+  labels: {
+    card1: string;
+    card2: string;
+  };
+}
+
+export interface CounterSnapshots {
+  [dateKey: string]: CounterSnapshot;
+}
+
+export interface CounterSettingsHistory {
+  [dateKey: string]: CounterSettings;
+}
+
 export interface CounterSettings {
   card1Label: string;
   card1CountdownMode: boolean;
@@ -48,11 +68,18 @@ export interface PlannerData {
 
 const STORAGE_KEY = 'daily-planner-data';
 const COUNTER_STORAGE_KEY = 'daily-planner-counters';
+const COUNTER_SNAPSHOT_STORAGE_KEY = 'daily-planner-counter-snapshots';
+const COUNTER_SETTINGS_HISTORY_STORAGE_KEY = 'daily-planner-counter-settings-history';
 const SETTINGS_STORAGE_KEY = 'daily-planner-settings';
 
 interface DailyPlannerContextValue {
   data: PlannerData;
   counters: CounterData;
+  counterSettings: CounterSettings;
+  counterLabels: {
+    card1: string;
+    card2: string;
+  };
   updateCounter: (key: keyof CounterData, value: number) => void;
   settings: SettingsData;
   updateSettings: (key: keyof SettingsData, value: SettingsData[keyof SettingsData]) => void;
@@ -121,9 +148,139 @@ function normalizeStoredSettings(storedSettings: Partial<SettingsData>): Setting
   return mergedSettings;
 }
 
+function clampCounterValue(value: number) {
+  return Math.max(0, value);
+}
+
+function getDateKeyFromDate(date: Date) {
+  return date.toISOString().split("T")[0];
+}
+
+function getDayDifference(fromKey: string, toKey: string) {
+  const fromDate = new Date(`${fromKey}T00:00:00`);
+  const toDate = new Date(`${toKey}T00:00:00`);
+  return Math.round((toDate.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function deriveCounterValue(
+  history: CounterHistory,
+  dateKey: string,
+  counterKey: keyof CounterData,
+  shouldIncrementForward: boolean,
+) {
+  const sortedKeys = Object.keys(history).sort();
+
+  if (sortedKeys.length === 0) {
+    return 0;
+  }
+
+  const exactValue = history[dateKey]?.[counterKey];
+  if (typeof exactValue === "number") {
+    return clampCounterValue(exactValue);
+  }
+
+  const previousKey = [...sortedKeys].reverse().find((key) => key < dateKey && typeof history[key]?.[counterKey] === "number");
+  const nextKey = sortedKeys.find((key) => key > dateKey && typeof history[key]?.[counterKey] === "number");
+
+  if (previousKey) {
+    const previousValue = history[previousKey]?.[counterKey] ?? 0;
+    if (shouldIncrementForward) {
+      return clampCounterValue(previousValue - getDayDifference(previousKey, dateKey));
+    }
+    return clampCounterValue(previousValue);
+  }
+
+  if (nextKey) {
+    const nextValue = history[nextKey]?.[counterKey] ?? 0;
+    return shouldIncrementForward
+      ? clampCounterValue(nextValue + getDayDifference(dateKey, nextKey))
+      : clampCounterValue(nextValue - getDayDifference(dateKey, nextKey));
+  }
+
+  return 0;
+}
+
+function deriveCounterSettings(
+  history: CounterSettingsHistory,
+  dateKey: string,
+  fallbackSettings: CounterSettings,
+) {
+  const sortedKeys = Object.keys(history).sort();
+
+  if (sortedKeys.length === 0) {
+    return fallbackSettings;
+  }
+
+  const exactValue = history[dateKey];
+  if (exactValue) {
+    return exactValue;
+  }
+
+  const previousKey = [...sortedKeys].reverse().find((key) => key < dateKey);
+
+  if (previousKey) {
+    return history[previousKey];
+  }
+
+  const nextKey = sortedKeys.find((key) => key > dateKey);
+
+  if (nextKey) {
+    return history[nextKey];
+  }
+
+  return fallbackSettings;
+}
+
+function buildPastCounterSnapshots(
+  history: CounterHistory,
+  snapshots: CounterSnapshots,
+  selectedDateKey: string,
+  settings: SettingsData,
+) {
+  const earliestKey = Object.keys(history).sort()[0];
+  if (!earliestKey) {
+    return snapshots;
+  }
+
+  const nextSnapshots = { ...snapshots };
+  const cursor = new Date(`${earliestKey}T00:00:00`);
+  const end = new Date(`${selectedDateKey}T00:00:00`);
+
+  while (cursor < end) {
+    const dateKey = getDateKeyFromDate(cursor);
+    if (!nextSnapshots[dateKey]) {
+      nextSnapshots[dateKey] = {
+        values: {
+          card1: deriveCounterValue(
+            history,
+            dateKey,
+            "card1",
+            settings.counterSettings.card1CountdownMode,
+          ),
+          card2: deriveCounterValue(
+            history,
+            dateKey,
+            "card2",
+            settings.counterSettings.card2CountdownMode,
+          ),
+        },
+        labels: {
+          card1: settings.counterSettings.card1Label,
+          card2: settings.counterSettings.card2Label,
+        },
+      };
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return nextSnapshots;
+}
+
 function useDailyPlannerState(): DailyPlannerContextValue {
   const [data, setData] = useState<PlannerData>({});
-  const [counters, setCounters] = useState<CounterData>({ card1: 0, card2: 0 });
+  const [counterHistory, setCounterHistory] = useState<CounterHistory>({});
+  const [counterSnapshots, setCounterSnapshots] = useState<CounterSnapshots>({});
+  const [counterSettingsHistory, setCounterSettingsHistory] = useState<CounterSettingsHistory>({});
   const [tasks, setTasks] = useState<string[]>(TASKS);
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -131,6 +288,8 @@ function useDailyPlannerState(): DailyPlannerContextValue {
 
   // Load data from localStorage on mount
   useEffect(() => {
+    let parsedCounterSnapshots: CounterSnapshots | null = null;
+
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
@@ -142,17 +301,59 @@ function useDailyPlannerState(): DailyPlannerContextValue {
     const storedCounters = localStorage.getItem(COUNTER_STORAGE_KEY);
     if (storedCounters) {
       try {
-        const parsedCounters = JSON.parse(storedCounters) as Partial<CounterData> & {
+        const parsedCounters = JSON.parse(storedCounters) as CounterHistory | (Partial<CounterData> & {
           sober?: number;
           healthyLungs?: number;
-        };
-        setCounters({
-          card1: parsedCounters.card1 ?? parsedCounters.sober ?? 0,
-          card2: parsedCounters.card2 ?? parsedCounters.healthyLungs ?? 0,
         });
+        const todayKey = getDateKeyFromDate(new Date());
+
+        if ("card1" in parsedCounters || "card2" in parsedCounters || "sober" in parsedCounters || "healthyLungs" in parsedCounters) {
+          setCounterHistory({
+            [todayKey]: {
+              card1: parsedCounters.card1 ?? parsedCounters.sober ?? 0,
+              card2: parsedCounters.card2 ?? parsedCounters.healthyLungs ?? 0,
+            },
+          });
+        } else {
+          const migratedHistory = Object.entries(parsedCounters as CounterHistory).reduce<CounterHistory>((acc, [dateKey, value]) => {
+            acc[dateKey] = {
+              card1: value.card1 ?? (value as Partial<CounterData> & { sober?: number }).sober,
+              card2: value.card2 ?? (value as Partial<CounterData> & { healthyLungs?: number }).healthyLungs,
+            };
+            return acc;
+          }, {});
+          setCounterHistory(migratedHistory);
+        }
       } catch (e) {
         console.error('Failed to parse stored counters:', e);
       }
+    }
+    const storedCounterSnapshots = localStorage.getItem(COUNTER_SNAPSHOT_STORAGE_KEY);
+    if (storedCounterSnapshots) {
+      try {
+        parsedCounterSnapshots = JSON.parse(storedCounterSnapshots) as CounterSnapshots;
+        setCounterSnapshots(parsedCounterSnapshots);
+      } catch (e) {
+        console.error('Failed to parse stored counter snapshots:', e);
+      }
+    }
+    const storedCounterSettingsHistory = localStorage.getItem(COUNTER_SETTINGS_HISTORY_STORAGE_KEY);
+    if (storedCounterSettingsHistory) {
+      try {
+        setCounterSettingsHistory(JSON.parse(storedCounterSettingsHistory));
+      } catch (e) {
+        console.error('Failed to parse stored counter settings history:', e);
+      }
+    } else if (parsedCounterSnapshots) {
+      const migratedSettingsHistory = Object.entries(parsedCounterSnapshots).reduce<CounterSettingsHistory>((acc, [dateKey, snapshot]) => {
+        acc[dateKey] = {
+          ...defaultSettings.counterSettings,
+          card1Label: snapshot.labels.card1,
+          card2Label: snapshot.labels.card2,
+        };
+        return acc;
+      }, {});
+      setCounterSettingsHistory(migratedSettingsHistory);
     }
     const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (storedSettings) {
@@ -175,9 +376,21 @@ function useDailyPlannerState(): DailyPlannerContextValue {
   // Save counters to localStorage whenever they change
   useEffect(() => {
     if (!isLoading) {
-      localStorage.setItem(COUNTER_STORAGE_KEY, JSON.stringify(counters));
+      localStorage.setItem(COUNTER_STORAGE_KEY, JSON.stringify(counterHistory));
     }
-  }, [counters, isLoading]);
+  }, [counterHistory, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(COUNTER_SNAPSHOT_STORAGE_KEY, JSON.stringify(counterSnapshots));
+    }
+  }, [counterSnapshots, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(COUNTER_SETTINGS_HISTORY_STORAGE_KEY, JSON.stringify(counterSettingsHistory));
+    }
+  }, [counterSettingsHistory, isLoading]);
 
   // Save settings to localStorage whenever they change
   useEffect(() => {
@@ -187,7 +400,7 @@ function useDailyPlannerState(): DailyPlannerContextValue {
   }, [settings, isLoading]);
 
   const getDateKey = useCallback((date: Date): string => {
-    return date.toISOString().split('T')[0];
+    return getDateKeyFromDate(date);
   }, []);
 
   const getDayData = useCallback((date: Date): DayData => {
@@ -251,22 +464,75 @@ function useDailyPlannerState(): DailyPlannerContextValue {
   }, []);
 
   const updateCounter = useCallback((key: keyof CounterData, value: number) => {
-    setCounters((prev) => ({
+    const currentDateKey = getDateKey(selectedDate);
+
+    setCounterHistory((prev) => ({
       ...prev,
-      [key]: Math.max(0, value),
+      [currentDateKey]: {
+        ...prev[currentDateKey],
+        [key]: clampCounterValue(value),
+      },
     }));
-  }, []);
+  }, [getDateKey, selectedDate]);
 
   const updateSettings = useCallback((key: keyof SettingsData, value: any) => {
+    if (key === "counterSettings") {
+      const currentDateKey = getDateKey(selectedDate);
+      const counterSettingsValue = value as CounterSettings;
+      const previousDate = new Date(selectedDate);
+      previousDate.setDate(previousDate.getDate() - 1);
+      const previousDateKey = getDateKey(previousDate);
+
+      setCounterSettingsHistory((prev) => {
+        const nextHistory = { ...prev };
+        const hasEarlierEntry = Object.keys(prev).some((historyDateKey) => historyDateKey < currentDateKey);
+
+        if (!hasEarlierEntry) {
+          nextHistory[previousDateKey] = deriveCounterSettings(prev, previousDateKey, settings.counterSettings);
+        }
+
+        nextHistory[currentDateKey] = counterSettingsValue;
+        return nextHistory;
+      });
+    }
+
     setSettings((prev) => ({
       ...prev,
       [key]: typeof value === 'number' ? Math.max(5, Math.round(value)) : value,
     }));
-  }, []);
+  }, [counterHistory, getDateKey, selectedDate, settings]);
+
+  const selectedDateKey = getDateKey(selectedDate);
+  const counterSettings = deriveCounterSettings(
+    counterSettingsHistory,
+    selectedDateKey,
+    settings.counterSettings,
+  );
+  const counters: CounterData = {
+    card1: deriveCounterValue(
+      counterHistory,
+      selectedDateKey,
+      "card1",
+      counterSettings.card1CountdownMode,
+    ),
+    card2: deriveCounterValue(
+      counterHistory,
+      selectedDateKey,
+      "card2",
+      counterSettings.card2CountdownMode,
+    ),
+  };
+
+  const counterLabels = {
+    card1: counterSettings.card1Label,
+    card2: counterSettings.card2Label,
+  };
 
   return {
     data,
     counters,
+    counterSettings,
+    counterLabels,
     updateCounter,
     settings,
     updateSettings,

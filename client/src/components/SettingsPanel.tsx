@@ -61,31 +61,52 @@ function getSleepTimeoutDisplay(seconds: number) {
 }
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
-  const { settings, updateSettings } = useDailyPlanner();
+  const { counters, counterLabels, counterSettings, settings, updateCounter, updateSettings } = useDailyPlanner();
   const [tempTimeout, setTempTimeout] = useState(settings.sleepModeTimeout);
   const [tempCelebrationStyle, setTempCelebrationStyle] = useState<CelebrationStyle>(settings.celebrationStyle);
-  const [tempCounterSettings, setTempCounterSettings] = useState<CounterSettings>(settings.counterSettings);
+  const [tempCounterSettings, setTempCounterSettings] = useState<CounterSettings>(counterSettings);
 
   // Sync temp state with settings when panel opens or settings change
   useEffect(() => {
     if (isOpen) {
       setTempTimeout(settings.sleepModeTimeout);
       setTempCelebrationStyle(settings.celebrationStyle);
-      setTempCounterSettings(settings.counterSettings);
+      setTempCounterSettings({
+        ...counterSettings,
+        card1Label: counterLabels.card1,
+        card2Label: counterLabels.card2,
+        card1CountdownTarget: counters.card1,
+        card2CountdownTarget: counters.card2,
+      });
     }
-  }, [isOpen, settings]);
+  }, [counterLabels, counterSettings, counters, isOpen, settings]);
 
   const handleSave = () => {
     updateSettings('sleepModeTimeout', tempTimeout);
     updateSettings('celebrationStyle', tempCelebrationStyle);
     updateSettings('counterSettings', tempCounterSettings);
+
+    if (tempCounterSettings.card1CountdownMode) {
+      updateCounter('card1', tempCounterSettings.card1CountdownTarget);
+    }
+
+    if (tempCounterSettings.card2CountdownMode) {
+      updateCounter('card2', tempCounterSettings.card2CountdownTarget);
+    }
+
     onClose();
   };
 
   const handleCancel = () => {
     setTempTimeout(settings.sleepModeTimeout);
     setTempCelebrationStyle(settings.celebrationStyle);
-    setTempCounterSettings(settings.counterSettings);
+    setTempCounterSettings({
+      ...counterSettings,
+      card1Label: counterLabels.card1,
+      card2Label: counterLabels.card2,
+      card1CountdownTarget: counters.card1,
+      card2CountdownTarget: counters.card2,
+    });
     onClose();
   };
 

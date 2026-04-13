@@ -3,10 +3,15 @@ import { useState } from 'react';
 import { CounterSparkleAnimation } from './CounterSparkleAnimation';
 
 export function CounterCards() {
-  const { counters, settings, updateCounter } = useDailyPlanner();
+  const { counters, counterLabels, counterSettings, updateCounter } = useDailyPlanner();
   const [editingKey, setEditingKey] = useState<'card1' | 'card2' | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [animatingCounter, setAnimatingCounter] = useState<'card1' | 'card2' | null>(null);
+
+  const counterUnits = {
+    card1: counterSettings.card1CountdownMode ? 'days to go' : 'days',
+    card2: counterSettings.card2CountdownMode ? 'days to go' : 'days',
+  };
 
   const handleEdit = (key: 'card1' | 'card2') => {
     setEditingKey(key);
@@ -48,7 +53,7 @@ export function CounterCards() {
         onClick={() => handleEdit('card1')}
         className="relative p-3 sm:p-4 rounded-2xl bg-card border-2 border-border hover:border-accent/50 transition-all duration-200 cursor-pointer group overflow-hidden"
         style={{
-          backgroundImage: `url(${settings.counterSettings.card1BackgroundImage})`,
+          backgroundImage: `url(${counterSettings.card1BackgroundImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
@@ -61,7 +66,7 @@ export function CounterCards() {
           {editingKey === 'card1' ? (
             <div className="space-y-2">
               <label className="text-xs font-medium text-white/90">
-                {settings.counterSettings.card1Label}
+                {counterLabels.card1}
               </label>
               <input
                 type="number"
@@ -76,12 +81,12 @@ export function CounterCards() {
           ) : (
             <div className="text-center">
               <p className="text-xs font-medium text-white/90 mb-1">
-                {settings.counterSettings.card1Label}
+                {counterLabels.card1}
               </p>
               <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-white group-hover:text-yellow-200 transition-colors">
                 {counters.card1}
               </p>
-              <p className="text-xs sm:text-sm text-white/80 mt-1">days</p>
+              <p className="text-xs sm:text-sm text-white/80 mt-1">{counterUnits.card1}</p>
             </div>
           )}
         </div>
@@ -92,7 +97,7 @@ export function CounterCards() {
         onClick={() => handleEdit('card2')}
         className="relative p-3 sm:p-4 rounded-2xl bg-card border-2 border-border hover:border-accent/50 transition-all duration-200 cursor-pointer group overflow-hidden"
         style={{
-          backgroundImage: `url(${settings.counterSettings.card2BackgroundImage})`,
+          backgroundImage: `url(${counterSettings.card2BackgroundImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
@@ -105,7 +110,7 @@ export function CounterCards() {
           {editingKey === 'card2' ? (
             <div className="space-y-2">
               <label className="text-xs font-medium text-white/90">
-                {settings.counterSettings.card2Label}
+                {counterLabels.card2}
               </label>
               <input
                 type="number"
@@ -120,12 +125,12 @@ export function CounterCards() {
           ) : (
             <div className="text-center">
               <p className="text-xs font-medium text-white/90 mb-1">
-                {settings.counterSettings.card2Label}
+                {counterLabels.card2}
               </p>
               <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-white group-hover:text-cyan-200 transition-colors">
                 {counters.card2}
               </p>
-              <p className="text-xs sm:text-sm text-white/80 mt-1">days</p>
+              <p className="text-xs sm:text-sm text-white/80 mt-1">{counterUnits.card2}</p>
             </div>
           )}
         </div>
