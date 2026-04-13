@@ -36,6 +36,13 @@ export function CounterSparkleAnimation({
   const [quote, setQuote] = useState('');
   const [showQuote, setShowQuote] = useState(false);
 
+  const handleClose = () => {
+    setSparkles([]);
+    setShowQuote(false);
+    setQuote('');
+    onComplete();
+  };
+
   useEffect(() => {
     if (!isActive) return;
 
@@ -58,10 +65,7 @@ export function CounterSparkleAnimation({
 
     // Complete animation after quote display
     const completeTimer = setTimeout(() => {
-      setSparkles([]);
-      setShowQuote(false);
-      setQuote('');
-      onComplete();
+      handleClose();
     }, 5000);
 
     return () => {
@@ -96,7 +100,7 @@ export function CounterSparkleAnimation({
       {showQuote && (
         <div
           className="fixed inset-0 z-50 bg-gradient-to-b from-purple-900 via-purple-800 to-purple-900 flex items-center justify-center p-6 animate-fadeIn"
-          onClick={onComplete}
+          onClick={handleClose}
         >
           <div className="max-w-2xl text-center space-y-6">
             <div className="text-4xl mb-8 animate-bounce">✨</div>
