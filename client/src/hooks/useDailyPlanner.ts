@@ -112,16 +112,7 @@ const defaultSettings: SettingsData = {
 const DailyPlannerContext = createContext<DailyPlannerContextValue | null>(null);
 
 function normalizeStoredSettings(storedSettings: Partial<SettingsData>): SettingsData {
-  const storedCounterSettings = storedSettings.counterSettings as Partial<CounterSettings> & {
-    soberLabel?: string;
-    soberCountdownMode?: boolean;
-    soberCountdownTarget?: number;
-    healthyLungsLabel?: string;
-    healthyLungsCountdownMode?: boolean;
-    healthyLungsCountdownTarget?: number;
-    soberBackgroundImage?: string;
-    healthyLungsBackgroundImage?: string;
-  };
+  const storedCounterSettings = storedSettings.counterSettings as Partial<CounterSettings>;
 
   const mergedSettings: SettingsData = {
     ...defaultSettings,
@@ -129,14 +120,6 @@ function normalizeStoredSettings(storedSettings: Partial<SettingsData>): Setting
     counterSettings: {
       ...defaultSettings.counterSettings,
       ...storedCounterSettings,
-      card1Label: storedCounterSettings?.card1Label ?? storedCounterSettings?.soberLabel ?? defaultSettings.counterSettings.card1Label,
-      card1CountdownMode: storedCounterSettings?.card1CountdownMode ?? storedCounterSettings?.soberCountdownMode ?? defaultSettings.counterSettings.card1CountdownMode,
-      card1CountdownTarget: storedCounterSettings?.card1CountdownTarget ?? storedCounterSettings?.soberCountdownTarget ?? defaultSettings.counterSettings.card1CountdownTarget,
-      card2Label: storedCounterSettings?.card2Label ?? storedCounterSettings?.healthyLungsLabel ?? defaultSettings.counterSettings.card2Label,
-      card2CountdownMode: storedCounterSettings?.card2CountdownMode ?? storedCounterSettings?.healthyLungsCountdownMode ?? defaultSettings.counterSettings.card2CountdownMode,
-      card2CountdownTarget: storedCounterSettings?.card2CountdownTarget ?? storedCounterSettings?.healthyLungsCountdownTarget ?? defaultSettings.counterSettings.card2CountdownTarget,
-      card1BackgroundImage: storedCounterSettings?.card1BackgroundImage ?? storedCounterSettings?.soberBackgroundImage ?? defaultSettings.counterSettings.card1BackgroundImage,
-      card2BackgroundImage: storedCounterSettings?.card2BackgroundImage ?? storedCounterSettings?.healthyLungsBackgroundImage ?? defaultSettings.counterSettings.card2BackgroundImage,
     },
   };
 
@@ -301,29 +284,7 @@ function useDailyPlannerState(): DailyPlannerContextValue {
     const storedCounters = localStorage.getItem(COUNTER_STORAGE_KEY);
     if (storedCounters) {
       try {
-        const parsedCounters = JSON.parse(storedCounters) as CounterHistory | (Partial<CounterData> & {
-          sober?: number;
-          healthyLungs?: number;
-        });
-        const todayKey = getDateKeyFromDate(new Date());
-
-        if ("card1" in parsedCounters || "card2" in parsedCounters || "sober" in parsedCounters || "healthyLungs" in parsedCounters) {
-          setCounterHistory({
-            [todayKey]: {
-              card1: parsedCounters.card1 ?? parsedCounters.sober ?? 0,
-              card2: parsedCounters.card2 ?? parsedCounters.healthyLungs ?? 0,
-            },
-          });
-        } else {
-          const migratedHistory = Object.entries(parsedCounters as CounterHistory).reduce<CounterHistory>((acc, [dateKey, value]) => {
-            acc[dateKey] = {
-              card1: value.card1 ?? (value as Partial<CounterData> & { sober?: number }).sober,
-              card2: value.card2 ?? (value as Partial<CounterData> & { healthyLungs?: number }).healthyLungs,
-            };
-            return acc;
-          }, {});
-          setCounterHistory(migratedHistory);
-        }
+        setCounterHistory(JSON.parse(storedCounters) as CounterHistory);
       } catch (e) {
         console.error('Failed to parse stored counters:', e);
       }

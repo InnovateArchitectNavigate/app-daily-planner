@@ -35,10 +35,8 @@ const COUNTER_BACKGROUND_OPTIONS = [
   { id: 'skyline-aerial', name: 'Skyline Aerial', url: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?auto=format&fit=crop&w=1200&q=80' },
   { id: 'dance-floor-lights', name: 'Dance Floor Lights', url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80' },
   { id: 'celebration-balloons', name: 'Celebration Balloons', url: 'https://images.unsplash.com/photo-1531058020387-3be344556be6?auto=format&fit=crop&w=1200&q=80' },
-  // { id: 'festival-fireworks', name: 'Festival Fireworks', url: 'https://images.unsplash.com/photo-1504198453319-5ce911bafcde?auto=format&fit=crop&w=1200&q=80' },
   { id: 'neon-party-illustration', name: 'Neon Party Illustration', url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80' },
   { id: 'confetti-crowd', name: 'Confetti Crowd', url: 'https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=1200&q=80' },
-  // { id: 'game-jam-team', name: 'Game Jam Team', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80' },
 ];
 
 const SLEEP_TIMEOUT_PRESETS = [
