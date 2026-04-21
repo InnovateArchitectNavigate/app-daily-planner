@@ -1,6 +1,6 @@
 import { useDailyPlanner, CounterSettings, DEFAULT_COUNTER_BACKGROUND_IMAGES, DEFAULT_COUNTER_LABEL } from '@/hooks/useDailyPlanner';
 import { Button } from '@/components/ui/button';
-import { X, Settings } from 'lucide-react';
+import { Undo2, X, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { CelebrationStyleSelector } from './CelebrationStyleSelector';
 import { CelebrationStyle } from './CelebrationVariants';
@@ -67,6 +67,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     card1: false,
     card2: false,
   });
+  const [resetSnapshots, setResetSnapshots] = useState<{
+    card1: CounterSettings | null;
+    card2: CounterSettings | null;
+  }>({
+    card1: null,
+    card2: null,
+  });
 
   // Sync temp state with settings when panel opens or settings change
   useEffect(() => {
@@ -83,6 +90,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       setPendingCounterResets({
         card1: false,
         card2: false,
+      });
+      setResetSnapshots({
+        card1: null,
+        card2: null,
       });
     }
   }, [counterLabels, counterSettings, counters, isOpen, settings]);
@@ -125,10 +136,19 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       card1: false,
       card2: false,
     });
+    setResetSnapshots({
+      card1: null,
+      card2: null,
+    });
     onClose();
   };
 
   const handleResetCard = (key: 'card1' | 'card2') => {
+    setResetSnapshots((prev) => ({
+      ...prev,
+      [key]: prev[key] ?? tempCounterSettings,
+    }));
+
     setPendingCounterResets((prev) => ({
       ...prev,
       [key]: true,
@@ -149,6 +169,37 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         card2CountdownTarget: 0,
         card2BackgroundImage: DEFAULT_COUNTER_BACKGROUND_IMAGES.card2,
       });
+  };
+
+  const handleUndoReset = (key: 'card1' | 'card2') => {
+    const snapshot = resetSnapshots[key];
+    if (!snapshot) {
+      return;
+    }
+
+    setTempCounterSettings((prev) => key === 'card1'
+      ? {
+        ...prev,
+        card1Label: snapshot.card1Label,
+        card1CountdownMode: snapshot.card1CountdownMode,
+        card1CountdownTarget: snapshot.card1CountdownTarget,
+        card1BackgroundImage: snapshot.card1BackgroundImage,
+      }
+      : {
+        ...prev,
+        card2Label: snapshot.card2Label,
+        card2CountdownMode: snapshot.card2CountdownMode,
+        card2CountdownTarget: snapshot.card2CountdownTarget,
+        card2BackgroundImage: snapshot.card2BackgroundImage,
+      });
+    setPendingCounterResets((prev) => ({
+      ...prev,
+      [key]: false,
+    }));
+    setResetSnapshots((prev) => ({
+      ...prev,
+      [key]: null,
+    }));
   };
 
   if (!isOpen) return null;
@@ -267,18 +318,37 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
             {/* Card 1 Settings */}
             <div className="space-y-3 p-3 bg-muted rounded-lg">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-start justify-between gap-3">
                 <h4 className="text-sm font-medium text-foreground">Card 1</h4>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleResetCard('card1')}
-                  className="text-xs"
-                >
-                  Reset All To 0
-                </Button>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUndoReset('card1')}
+                    disabled={!pendingCounterResets.card1 || !resetSnapshots.card1}
+                    title="Undo reset for card 1"
+                    className="text-xs"
+                  >
+                    <Undo2 className="h-4 w-4" />
+                    
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleResetCard('card1')}
+                    className="text-xs"
+                  >
+                    Reset All To 0
+                  </Button>
+                </div>
               </div>
+              {pendingCounterResets.card1 && (
+                <p className="text-xs text-muted-foreground">
+                  Reset is staged for Card 1. Press Undo to restore the previous state.
+                </p>
+              )}
 
               <label className="text-xs font-medium text-foreground block">
                 Card 1 Label
@@ -364,18 +434,37 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
             {/* Card 2 Settings */}
             <div className="space-y-3 p-3 bg-muted rounded-lg">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-start justify-between gap-3">
                 <h4 className="text-sm font-medium text-foreground">Card 2</h4>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleResetCard('card2')}
-                  className="text-xs"
-                >
-                  Reset All To 0
-                </Button>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUndoReset('card2')}
+                    disabled={!pendingCounterResets.card2 || !resetSnapshots.card2}
+                    title="Undo reset for card 2"
+                    className="text-xs"
+                  >
+                    <Undo2 className="h-4 w-4" />
+                    
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleResetCard('card2')}
+                    className="text-xs"
+                  >
+                    Reset All To 0
+                  </Button>
+                </div>
               </div>
+              {pendingCounterResets.card2 && (
+                <p className="text-xs text-muted-foreground">
+                  Reset is staged for Card 2. Press Undo to restore the previous state.
+                </p>
+              )}
 
               <label className="text-xs font-medium text-foreground block">
                 Card 2 Label
