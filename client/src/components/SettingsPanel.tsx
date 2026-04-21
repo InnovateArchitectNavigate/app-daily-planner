@@ -1,4 +1,4 @@
-import { useDailyPlanner, CounterSettings } from '@/hooks/useDailyPlanner';
+import { useDailyPlanner, CounterSettings, DEFAULT_COUNTER_BACKGROUND_IMAGES, DEFAULT_COUNTER_LABEL } from '@/hooks/useDailyPlanner';
 import { Button } from '@/components/ui/button';
 import { X, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -59,10 +59,14 @@ function getSleepTimeoutDisplay(seconds: number) {
 }
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
-  const { counters, counterLabels, counterSettings, settings, updateCounter, updateSettings } = useDailyPlanner();
+  const { counters, counterLabels, counterSettings, settings, updateCounter, resetCounterCard, updateSettings } = useDailyPlanner();
   const [tempTimeout, setTempTimeout] = useState(settings.sleepModeTimeout);
   const [tempCelebrationStyle, setTempCelebrationStyle] = useState<CelebrationStyle>(settings.celebrationStyle);
   const [tempCounterSettings, setTempCounterSettings] = useState<CounterSettings>(counterSettings);
+  const [pendingCounterResets, setPendingCounterResets] = useState({
+    card1: false,
+    card2: false,
+  });
 
   // Sync temp state with settings when panel opens or settings change
   useEffect(() => {
@@ -75,6 +79,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         card2Label: counterLabels.card2,
         card1CountdownTarget: counters.card1,
         card2CountdownTarget: counters.card2,
+      });
+      setPendingCounterResets({
+        card1: false,
+        card2: false,
       });
     }
   }, [counterLabels, counterSettings, counters, isOpen, settings]);
@@ -92,6 +100,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       updateCounter('card2', tempCounterSettings.card2CountdownTarget);
     }
 
+    if (pendingCounterResets.card1) {
+      resetCounterCard('card1', tempCounterSettings);
+    }
+
+    if (pendingCounterResets.card2) {
+      resetCounterCard('card2', tempCounterSettings);
+    }
+
     onClose();
   };
 
@@ -105,7 +121,34 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       card1CountdownTarget: counters.card1,
       card2CountdownTarget: counters.card2,
     });
+    setPendingCounterResets({
+      card1: false,
+      card2: false,
+    });
     onClose();
+  };
+
+  const handleResetCard = (key: 'card1' | 'card2') => {
+    setPendingCounterResets((prev) => ({
+      ...prev,
+      [key]: true,
+    }));
+
+    setTempCounterSettings((prev) => key === 'card1'
+      ? {
+        ...prev,
+        card1Label: DEFAULT_COUNTER_LABEL,
+        card1CountdownMode: false,
+        card1CountdownTarget: 0,
+        card1BackgroundImage: DEFAULT_COUNTER_BACKGROUND_IMAGES.card1,
+      }
+      : {
+        ...prev,
+        card2Label: DEFAULT_COUNTER_LABEL,
+        card2CountdownMode: false,
+        card2CountdownTarget: 0,
+        card2BackgroundImage: DEFAULT_COUNTER_BACKGROUND_IMAGES.card2,
+      });
   };
 
   if (!isOpen) return null;
@@ -224,7 +267,18 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
             {/* Card 1 Settings */}
             <div className="space-y-3 p-3 bg-muted rounded-lg">
-              <h4 className="text-sm font-medium text-foreground">Card 1</h4>
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-sm font-medium text-foreground">Card 1</h4>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleResetCard('card1')}
+                  className="text-xs"
+                >
+                  Reset All To 0
+                </Button>
+              </div>
 
               <label className="text-xs font-medium text-foreground block">
                 Card 1 Label
@@ -310,7 +364,18 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
             {/* Card 2 Settings */}
             <div className="space-y-3 p-3 bg-muted rounded-lg">
-              <h4 className="text-sm font-medium text-foreground">Card 2</h4>
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-sm font-medium text-foreground">Card 2</h4>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleResetCard('card2')}
+                  className="text-xs"
+                >
+                  Reset All To 0
+                </Button>
+              </div>
 
               <label className="text-xs font-medium text-foreground block">
                 Card 2 Label

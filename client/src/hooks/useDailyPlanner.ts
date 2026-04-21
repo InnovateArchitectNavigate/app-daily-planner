@@ -81,6 +81,7 @@ interface DailyPlannerContextValue {
     card2: string;
   };
   updateCounter: (key: keyof CounterData, value: number) => void;
+  resetCounterCard: (key: keyof CounterData, nextCounterSettings: CounterSettings) => void;
   settings: SettingsData;
   updateSettings: (key: keyof SettingsData, value: SettingsData[keyof SettingsData]) => void;
   selectedDate: Date;
@@ -94,6 +95,13 @@ interface DailyPlannerContextValue {
   isLoading: boolean;
 }
 
+export const DEFAULT_COUNTER_BACKGROUND_IMAGES = {
+  card1: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/sober-background-bDFkU7TWD7dBBJfyHkpZHT.webp',
+  card2: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/healthy-lungs-background-eKXsr288wJwJ6wEvGSPAir.webp',
+} as const;
+
+export const DEFAULT_COUNTER_LABEL = '[YOUR GOAL OR EVENT]';
+
 const defaultSettings: SettingsData = {
   sleepModeTimeout: 300,
   celebrationStyle: 'particles',
@@ -104,8 +112,8 @@ const defaultSettings: SettingsData = {
     card2Label: '[HEALTHY LUNGS]',
     card2CountdownMode: false,
     card2CountdownTarget: 0,
-    card1BackgroundImage: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/sober-background-bDFkU7TWD7dBBJfyHkpZHT.webp',
-    card2BackgroundImage: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663523060286/knRwrfkCnLKzMouRBtkKzr/healthy-lungs-background-eKXsr288wJwJ6wEvGSPAir.webp',
+    card1BackgroundImage: DEFAULT_COUNTER_BACKGROUND_IMAGES.card1,
+    card2BackgroundImage: DEFAULT_COUNTER_BACKGROUND_IMAGES.card2,
   },
 };
 
@@ -436,6 +444,68 @@ function useDailyPlannerState(): DailyPlannerContextValue {
     }));
   }, [getDateKey, selectedDate]);
 
+  const resetCounterCard = useCallback((key: keyof CounterData, nextCounterSettings: CounterSettings) => {
+    const currentDateKey = getDateKey(selectedDate);
+
+    setCounterHistory((prev) => {
+      const nextHistory = Object.entries(prev).reduce<CounterHistory>((acc, [dateKey, values]) => {
+        acc[dateKey] = {
+          ...values,
+          [key]: 0,
+        };
+        return acc;
+      }, {});
+
+      nextHistory[currentDateKey] = {
+        ...nextHistory[currentDateKey],
+        [key]: 0,
+      };
+
+      return nextHistory;
+    });
+
+    setCounterSettingsHistory((prev) => {
+      const nextHistory = Object.entries(prev).reduce<CounterSettingsHistory>((acc, [dateKey, value]) => {
+        acc[dateKey] = key === 'card1'
+          ? {
+            ...value,
+            card1Label: nextCounterSettings.card1Label,
+            card1CountdownMode: nextCounterSettings.card1CountdownMode,
+            card1CountdownTarget: nextCounterSettings.card1CountdownTarget,
+            card1BackgroundImage: nextCounterSettings.card1BackgroundImage,
+          }
+          : {
+            ...value,
+            card2Label: nextCounterSettings.card2Label,
+            card2CountdownMode: nextCounterSettings.card2CountdownMode,
+            card2CountdownTarget: nextCounterSettings.card2CountdownTarget,
+            card2BackgroundImage: nextCounterSettings.card2BackgroundImage,
+          };
+        return acc;
+      }, {});
+
+      const currentSettings = nextHistory[currentDateKey] ?? nextCounterSettings;
+
+      nextHistory[currentDateKey] = key === 'card1'
+        ? {
+          ...currentSettings,
+          card1Label: nextCounterSettings.card1Label,
+          card1CountdownMode: nextCounterSettings.card1CountdownMode,
+          card1CountdownTarget: nextCounterSettings.card1CountdownTarget,
+          card1BackgroundImage: nextCounterSettings.card1BackgroundImage,
+        }
+        : {
+          ...currentSettings,
+          card2Label: nextCounterSettings.card2Label,
+          card2CountdownMode: nextCounterSettings.card2CountdownMode,
+          card2CountdownTarget: nextCounterSettings.card2CountdownTarget,
+          card2BackgroundImage: nextCounterSettings.card2BackgroundImage,
+        };
+
+      return nextHistory;
+    });
+  }, [getDateKey, selectedDate]);
+
   const updateSettings = useCallback((key: keyof SettingsData, value: any) => {
     if (key === "counterSettings") {
       const currentDateKey = getDateKey(selectedDate);
@@ -495,6 +565,7 @@ function useDailyPlannerState(): DailyPlannerContextValue {
     counterSettings,
     counterLabels,
     updateCounter,
+    resetCounterCard,
     settings,
     updateSettings,
     selectedDate,
