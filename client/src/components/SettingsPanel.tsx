@@ -1,9 +1,10 @@
-import { useDailyPlanner, CounterSettings, DEFAULT_COUNTER_BACKGROUND_IMAGES, DEFAULT_COUNTER_LABEL } from '@/hooks/useDailyPlanner';
+import { useDailyPlanner, CounterSettings, DEFAULT_COUNTER_BACKGROUND_IMAGES, DEFAULT_COUNTER_LABEL, TaskItem } from '@/hooks/useDailyPlanner';
 import { Button } from '@/components/ui/button';
 import { Undo2, X, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { CelebrationStyleSelector } from './CelebrationStyleSelector';
 import { CelebrationStyle } from './CelebrationVariants';
+import TaskEditor from './TaskEditor';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -59,10 +60,11 @@ function getSleepTimeoutDisplay(seconds: number) {
 }
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
-  const { counters, counterLabels, counterSettings, settings, updateCounter, resetCounterCard, undoCounterReset, canUndoCounterReset, updateSettings } = useDailyPlanner();
+  const { tasks, counters, counterLabels, counterSettings, settings, updateCounter, resetCounterCard, undoCounterReset, canUndoCounterReset, updateTasks, updateSettings } = useDailyPlanner();
   const [tempTimeout, setTempTimeout] = useState(settings.sleepModeTimeout);
   const [tempCelebrationStyle, setTempCelebrationStyle] = useState<CelebrationStyle>(settings.celebrationStyle);
   const [tempCounterSettings, setTempCounterSettings] = useState<CounterSettings>(counterSettings);
+  const [tempTasks, setTempTasks] = useState<TaskItem[]>(tasks);
   const [pendingCounterResets, setPendingCounterResets] = useState({
     card1: false,
     card2: false,
@@ -87,6 +89,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         card1CountdownTarget: counters.card1,
         card2CountdownTarget: counters.card2,
       });
+      setTempTasks(tasks);
       setPendingCounterResets({
         card1: false,
         card2: false,
@@ -96,12 +99,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         card2: null,
       });
     }
-  }, [counterLabels, counterSettings, counters, isOpen, settings]);
+  }, [counterLabels, counterSettings, counters, isOpen, settings, tasks]);
 
   const handleSave = () => {
     updateSettings('sleepModeTimeout', tempTimeout);
     updateSettings('celebrationStyle', tempCelebrationStyle);
     updateSettings('counterSettings', tempCounterSettings);
+    updateTasks(tempTasks);
 
     if (tempCounterSettings.card1CountdownMode) {
       updateCounter('card1', tempCounterSettings.card1CountdownTarget);
@@ -132,6 +136,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       card1CountdownTarget: counters.card1,
       card2CountdownTarget: counters.card2,
     });
+    setTempTasks(tasks);
     setPendingCounterResets({
       card1: false,
       card2: false,
@@ -321,6 +326,19 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             />
           </div>
 
+          <div className="border-t border-border pt-6 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Task Settings</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Edit task names, drag to reorder, add new tasks, or remove old ones.
+              </p>
+            </div>
+            <TaskEditor
+              tasks={tempTasks}
+              onTasksChange={setTempTasks}
+            />
+          </div>
+
           {/* Counter Settings */}
           <div className="border-t border-border pt-6 space-y-4">
             <h3 className="text-sm font-semibold text-foreground">Counter Settings</h3>
@@ -345,6 +363,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     className="text-xs"
                   >
                     <Undo2 className="h-4 w-4" />
+                    Undo
                   </Button>
                   <Button
                     type="button"
@@ -470,6 +489,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     className="text-xs"
                   >
                     <Undo2 className="h-4 w-4" />
+                    Undo
                   </Button>
                   <Button
                     type="button"

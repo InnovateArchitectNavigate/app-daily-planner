@@ -2,29 +2,37 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GripVertical, Trash2, Plus } from 'lucide-react';
+import { TaskItem } from '@/hooks/useDailyPlanner';
 
 interface TaskEditorProps {
-    tasks: string[];
-    onTasksChange: (tasks: string[]) => void;
+    tasks: TaskItem[];
+    onTasksChange: (tasks: TaskItem[]) => void;
 }
 
 export default function TaskEditor({ tasks, onTasksChange }: TaskEditorProps) {
-    const [editingTasks, setEditingTasks] = useState<string[]>(tasks);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
     const handleTaskChange = (index: number, value: string) => {
-        const newTasks = [...editingTasks];
-        newTasks[index] = value;
-        setEditingTasks(newTasks);
+        const newTasks = [...tasks];
+        newTasks[index] = {
+            ...newTasks[index],
+            label: value,
+        };
+        onTasksChange(newTasks);
     };
 
     const handleDeleteTask = (index: number) => {
-        const newTasks = editingTasks.filter((_, i) => i !== index);
-        setEditingTasks(newTasks);
+        onTasksChange(tasks.filter((_, i) => i !== index));
     };
 
     const handleAddTask = () => {
-        setEditingTasks([...editingTasks, 'New Task']);
+        onTasksChange([
+            ...tasks,
+            {
+                id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+                label: 'New Task',
+            },
+        ]);
     };
 
     const handleDragStart = (index: number) => {
@@ -35,32 +43,24 @@ export default function TaskEditor({ tasks, onTasksChange }: TaskEditorProps) {
         e.preventDefault();
         if (draggedIndex === null || draggedIndex === index) return;
 
-        const newTasks = [...editingTasks];
+        const newTasks = [...tasks];
         const draggedTask = newTasks[draggedIndex];
         newTasks.splice(draggedIndex, 1);
         newTasks.splice(index, 0, draggedTask);
         setDraggedIndex(index);
-        setEditingTasks(newTasks);
+        onTasksChange(newTasks);
     };
 
     const handleDragEnd = () => {
         setDraggedIndex(null);
     };
 
-    const handleSave = () => {
-        onTasksChange(editingTasks);
-    };
-
-    const handleReset = () => {
-        setEditingTasks(tasks);
-    };
-
     return (
         <div className="space-y-4">
             <div className="space-y-3 max-h-96 overflow-y-auto">
-                {editingTasks.map((task, index) => (
+                {tasks.map((task, index) => (
                     <div
-                        key={index}
+                        key={task.id}
                         draggable
                         onDragStart={() => handleDragStart(index)}
                         onDragOver={(e) => handleDragOver(e, index)}
@@ -70,7 +70,7 @@ export default function TaskEditor({ tasks, onTasksChange }: TaskEditorProps) {
                     >
                         <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab active:cursor-grabbing flex-shrink-0" />
                         <Input
-                            value={task}
+                            value={task.label}
                             onChange={(e) => handleTaskChange(index, e.target.value)}
                             className="flex-1 text-sm"
                             placeholder="Task name"
@@ -98,24 +98,6 @@ export default function TaskEditor({ tasks, onTasksChange }: TaskEditorProps) {
                 <Plus className="w-4 h-4 mr-2" />
                 Add Task
             </Button>
-
-            <div className="flex gap-2">
-                <Button
-                    variant="outline"
-                    onClick={handleReset}
-                    className="flex-1"
-                    size="sm"
-                >
-                    Cancel
-                </Button>
-                <Button
-                    onClick={handleSave}
-                    className="flex-1"
-                    size="sm"
-                >
-                    Save Tasks
-                </Button>
-            </div>
         </div>
     );
 }
