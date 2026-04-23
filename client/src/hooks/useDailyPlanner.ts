@@ -20,6 +20,10 @@ export interface TaskItem {
   label: string;
 }
 
+export interface TaskHistory {
+  [dateKey: string]: TaskItem[];
+}
+
 export interface DayData {
   completed: boolean[];
   isFreeDay: boolean;
@@ -79,6 +83,7 @@ export interface PlannerData {
 
 const STORAGE_KEY = 'daily-planner-data';
 const TASKS_STORAGE_KEY = 'daily-planner-tasks';
+const TASKS_HISTORY_STORAGE_KEY = 'daily-planner-tasks-history';
 const COUNTER_STORAGE_KEY = 'daily-planner-counters';
 const COUNTER_SNAPSHOT_STORAGE_KEY = 'daily-planner-counter-snapshots';
 const COUNTER_SETTINGS_HISTORY_STORAGE_KEY = 'daily-planner-counter-settings-history';
@@ -191,6 +196,35 @@ function normalizeCompletedForTaskCount(completed: boolean[] | undefined, taskCo
   return nextCompleted;
 }
 
+function deriveTasks(
+  history: TaskHistory,
+  dateKey: string,
+  fallbackTasks: TaskItem[],
+) {
+  const sortedKeys = Object.keys(history).sort();
+
+  if (sortedKeys.length === 0) {
+    return fallbackTasks;
+  }
+
+  const exactValue = history[dateKey];
+  if (exactValue) {
+    return exactValue;
+  }
+
+  const previousKey = [...sortedKeys].reverse().find((key) => key < dateKey);
+  if (previousKey) {
+    return history[previousKey];
+  }
+
+  const nextKey = sortedKeys.find((key) => key > dateKey);
+  if (nextKey) {
+    return history[nextKey];
+  }
+
+  return fallbackTasks;
+}
+
 function remapPlannerDataForTasks(data: PlannerData, previousTasks: TaskItem[], nextTasks: TaskItem[]) {
   const previousTaskIndexMap = new Map(previousTasks.map((task, index) => [task.id, index]));
 
@@ -203,6 +237,48 @@ function remapPlannerDataForTasks(data: PlannerData, previousTasks: TaskItem[], 
       }),
     };
 
+    return acc;
+  }, {});
+}
+
+function applyTaskHistoryFromDate(
+  history: TaskHistory,
+  currentDateKey: string,
+  nextTasks: TaskItem[],
+) {
+  const nextHistory = Object.entries(history).reduce<TaskHistory>((acc, [dateKey, value]) => {
+    if (dateKey < currentDateKey) {
+      acc[dateKey] = value;
+      return acc;
+    }
+
+    acc[dateKey] = nextTasks;
+    return acc;
+  }, {});
+
+  nextHistory[currentDateKey] = nextTasks;
+  return nextHistory;
+}
+
+function remapPlannerDataForTasksFromDate(
+  data: PlannerData,
+  currentDateKey: string,
+  taskHistory: TaskHistory,
+  fallbackTasks: TaskItem[],
+  nextTasks: TaskItem[],
+) {
+  return Object.entries(data).reduce<PlannerData>((acc, [dateKey, dayData]) => {
+    if (dateKey < currentDateKey) {
+      acc[dateKey] = dayData;
+      return acc;
+    }
+
+    const previousTasksForDate = deriveTasks(taskHistory, dateKey, fallbackTasks);
+    acc[dateKey] = remapPlannerDataForTasks(
+      { [dateKey]: dayData },
+      previousTasksForDate,
+      nextTasks,
+    )[dateKey];
     return acc;
   }, {});
 }
@@ -434,7 +510,8 @@ function buildPastCounterSnapshots(
 }
 
 function useDailyPlannerState(): DailyPlannerContextValue {
-  const [tasks, setTasks] = useState<TaskItem[]>(createDefaultTasks);
+  const [baseTasks, setBaseTasks] = useState<TaskItem[]>(createDefaultTasks);
+  const [taskHistory, setTaskHistory] = useState<TaskHistory>({});
   const [data, setData] = useState<PlannerData>({});
   const [counterHistory, setCounterHistory] = useState<CounterHistory>({});
   const [counterSnapshots, setCounterSnapshots] = useState<CounterSnapshots>({});
@@ -465,9 +542,21 @@ function useDailyPlannerState(): DailyPlannerContextValue {
     const storedTasks = localStorage.getItem(TASKS_STORAGE_KEY);
     if (storedTasks) {
       try {
-        setTasks(normalizeTasks(JSON.parse(storedTasks)));
+        setBaseTasks(normalizeTasks(JSON.parse(storedTasks)));
       } catch (e) {
         console.error('Failed to parse stored tasks:', e);
+      }
+    }
+    const storedTaskHistory = localStorage.getItem(TASKS_HISTORY_STORAGE_KEY);
+    if (storedTaskHistory) {
+      try {
+        const parsedTaskHistory = JSON.parse(storedTaskHistory) as TaskHistory;
+        setTaskHistory(Object.entries(parsedTaskHistory).reduce<TaskHistory>((acc, [dateKey, value]) => {
+          acc[dateKey] = normalizeTasks(value);
+          return acc;
+        }, {}));
+      } catch (e) {
+        console.error('Failed to parse stored task history:', e);
       }
     }
     const storedCounters = localStorage.getItem(COUNTER_STORAGE_KEY);
@@ -525,9 +614,15 @@ function useDailyPlannerState(): DailyPlannerContextValue {
 
   useEffect(() => {
     if (!isLoading) {
-      localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+      localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(baseTasks));
     }
-  }, [isLoading, tasks]);
+  }, [baseTasks, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(TASKS_HISTORY_STORAGE_KEY, JSON.stringify(taskHistory));
+    }
+  }, [isLoading, taskHistory]);
 
   // Save counters to localStorage whenever they change
   useEffect(() => {
@@ -561,14 +656,15 @@ function useDailyPlannerState(): DailyPlannerContextValue {
 
   const getDayData = useCallback((date: Date): DayData => {
     const key = getDateKey(date);
+    const tasksForDate = deriveTasks(taskHistory, key, baseTasks);
     return data[key] ? {
       ...data[key],
-      completed: normalizeCompletedForTaskCount(data[key].completed, tasks.length),
+      completed: normalizeCompletedForTaskCount(data[key].completed, tasksForDate.length),
     } : {
-      completed: new Array(tasks.length).fill(false),
+      completed: new Array(tasksForDate.length).fill(false),
       isFreeDay: false,
     };
-  }, [data, getDateKey, tasks.length]);
+  }, [baseTasks, data, getDateKey, taskHistory]);
 
   const toggleTask = useCallback((date: Date, taskIndex: number) => {
     const key = getDateKey(date);
@@ -604,16 +700,17 @@ function useDailyPlannerState(): DailyPlannerContextValue {
       const date = new Date(startDate);
       date.setDate(date.getDate() + i);
       const dayData = getDayData(date);
+      const tasksForDate = deriveTasks(taskHistory, getDateKey(date), baseTasks);
       const completed = dayData.completed.filter(Boolean).length;
       week.push({
         date,
         completed,
-        total: tasks.length,
+        total: tasksForDate.length,
         isFreeDay: dayData.isFreeDay,
       });
     }
     return week;
-  }, [getDayData, tasks.length]);
+  }, [baseTasks, getDateKey, getDayData, taskHistory]);
 
   const getWeekStart = useCallback((date: Date): Date => {
     const d = new Date(date);
@@ -748,6 +845,7 @@ function useDailyPlannerState(): DailyPlannerContextValue {
   }, [counterResetSnapshots]);
 
   const updateTasks = useCallback((nextTasks: TaskItem[]) => {
+    const currentDateKey = getDateKey(selectedDate);
     const sanitizedTasks = nextTasks
       .map((task) => ({
         id: task.id || createTaskId(),
@@ -755,11 +853,29 @@ function useDailyPlannerState(): DailyPlannerContextValue {
       }))
       .filter((task) => task.label.length > 0);
 
-    setTasks((previousTasks) => {
-      setData((previousData) => remapPlannerDataForTasks(previousData, previousTasks, sanitizedTasks));
-      return sanitizedTasks;
+    setTaskHistory((prev) => {
+      const previousDate = new Date(selectedDate);
+      previousDate.setDate(previousDate.getDate() - 1);
+      const previousDateKey = getDateKey(previousDate);
+      const currentTasks = deriveTasks(prev, currentDateKey, baseTasks);
+      const hasEarlierEntry = Object.keys(prev).some((historyDateKey) => historyDateKey < currentDateKey);
+      const nextHistory = { ...prev };
+
+      if (!hasEarlierEntry) {
+        nextHistory[previousDateKey] = currentTasks;
+      }
+
+      setData((previousData) => remapPlannerDataForTasksFromDate(
+        previousData,
+        currentDateKey,
+        nextHistory,
+        baseTasks,
+        sanitizedTasks,
+      ));
+
+      return applyTaskHistoryFromDate(nextHistory, currentDateKey, sanitizedTasks);
     });
-  }, []);
+  }, [baseTasks, getDateKey, selectedDate]);
 
   const updateSettings = useCallback((key: keyof SettingsData, value: any) => {
     if (key === "counterSettings") {
@@ -789,6 +905,7 @@ function useDailyPlannerState(): DailyPlannerContextValue {
   }, [counterHistory, getDateKey, selectedDate, settings]);
 
   const selectedDateKey = getDateKey(selectedDate);
+  const tasks = deriveTasks(taskHistory, selectedDateKey, baseTasks);
   const counterSettings = deriveCounterSettings(
     counterSettingsHistory,
     selectedDateKey,
