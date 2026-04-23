@@ -59,7 +59,7 @@ function getSleepTimeoutDisplay(seconds: number) {
 }
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
-  const { counters, counterLabels, counterSettings, settings, updateCounter, resetCounterCard, updateSettings } = useDailyPlanner();
+  const { counters, counterLabels, counterSettings, settings, updateCounter, resetCounterCard, undoCounterReset, canUndoCounterReset, updateSettings } = useDailyPlanner();
   const [tempTimeout, setTempTimeout] = useState(settings.sleepModeTimeout);
   const [tempCelebrationStyle, setTempCelebrationStyle] = useState<CelebrationStyle>(settings.celebrationStyle);
   const [tempCounterSettings, setTempCounterSettings] = useState<CounterSettings>(counterSettings);
@@ -202,6 +202,15 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     }));
   };
 
+  const handleUndoAction = (key: 'card1' | 'card2') => {
+    if (pendingCounterResets[key]) {
+      handleUndoReset(key);
+      return;
+    }
+
+    undoCounterReset(key);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -321,17 +330,21 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               <div className="flex items-start justify-between gap-3">
                 <h4 className="text-sm font-medium text-foreground">Card 1</h4>
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                  {canUndoCounterReset.card1 && !pendingCounterResets.card1 && (
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Saved reset available
+                    </span>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => handleUndoReset('card1')}
-                    disabled={!pendingCounterResets.card1 || !resetSnapshots.card1}
+                    onClick={() => handleUndoAction('card1')}
+                    disabled={(!pendingCounterResets.card1 || !resetSnapshots.card1) && !canUndoCounterReset.card1}
                     title="Undo reset for card 1"
                     className="text-xs"
                   >
                     <Undo2 className="h-4 w-4" />
-                    
                   </Button>
                   <Button
                     type="button"
@@ -347,6 +360,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               {pendingCounterResets.card1 && (
                 <p className="text-xs text-muted-foreground">
                   Reset is staged for Card 1. Press Undo to restore the previous state.
+                </p>
+              )}
+              {!pendingCounterResets.card1 && canUndoCounterReset.card1 && (
+                <p className="text-xs text-muted-foreground">
+                  Card 1 was reset and saved. Press Undo to restore the calendar data from before that reset.
                 </p>
               )}
 
@@ -437,17 +455,21 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               <div className="flex items-start justify-between gap-3">
                 <h4 className="text-sm font-medium text-foreground">Card 2</h4>
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                  {canUndoCounterReset.card2 && !pendingCounterResets.card2 && (
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Saved reset available
+                    </span>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => handleUndoReset('card2')}
-                    disabled={!pendingCounterResets.card2 || !resetSnapshots.card2}
+                    onClick={() => handleUndoAction('card2')}
+                    disabled={(!pendingCounterResets.card2 || !resetSnapshots.card2) && !canUndoCounterReset.card2}
                     title="Undo reset for card 2"
                     className="text-xs"
                   >
                     <Undo2 className="h-4 w-4" />
-                    
                   </Button>
                   <Button
                     type="button"
@@ -463,6 +485,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               {pendingCounterResets.card2 && (
                 <p className="text-xs text-muted-foreground">
                   Reset is staged for Card 2. Press Undo to restore the previous state.
+                </p>
+              )}
+              {!pendingCounterResets.card2 && canUndoCounterReset.card2 && (
+                <p className="text-xs text-muted-foreground">
+                  Card 2 was reset and saved. Press Undo to restore the calendar data from before that reset.
                 </p>
               )}
 

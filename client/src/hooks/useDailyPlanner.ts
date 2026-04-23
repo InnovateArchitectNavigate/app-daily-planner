@@ -62,6 +62,12 @@ export interface SettingsData {
   counterSettings: CounterSettings;
 }
 
+interface CounterResetSnapshot {
+  counterHistory: CounterHistory;
+  counterSettingsHistory: CounterSettingsHistory;
+  activeCounterSettings: CounterSettings;
+}
+
 export interface PlannerData {
   [dateKey: string]: DayData;
 }
@@ -82,6 +88,11 @@ interface DailyPlannerContextValue {
   };
   updateCounter: (key: keyof CounterData, value: number) => void;
   resetCounterCard: (key: keyof CounterData, nextCounterSettings: CounterSettings) => void;
+  undoCounterReset: (key: keyof CounterData) => void;
+  canUndoCounterReset: {
+    card1: boolean;
+    card2: boolean;
+  };
   settings: SettingsData;
   updateSettings: (key: keyof SettingsData, value: SettingsData[keyof SettingsData]) => void;
   selectedDate: Date;
@@ -222,6 +233,82 @@ function deriveCounterSettings(
   return fallbackSettings;
 }
 
+function omitCounterValue(entry: Partial<CounterData>, key: keyof CounterData) {
+  const nextEntry = { ...entry };
+  delete nextEntry[key];
+  return nextEntry;
+}
+
+function restoreCounterHistoryForKey(
+  currentHistory: CounterHistory,
+  previousHistory: CounterHistory,
+  key: keyof CounterData,
+) {
+  const nextHistory: CounterHistory = {};
+  const allDateKeys = new Set([...Object.keys(currentHistory), ...Object.keys(previousHistory)]);
+
+  allDateKeys.forEach((dateKey) => {
+    const currentEntry = currentHistory[dateKey];
+    const previousValue = previousHistory[dateKey]?.[key];
+
+    if (typeof previousValue === 'number') {
+      nextHistory[dateKey] = {
+        ...currentEntry,
+        [key]: previousValue,
+      };
+      return;
+    }
+
+    if (currentEntry) {
+      const entryWithoutKey = omitCounterValue(currentEntry, key);
+      if (Object.keys(entryWithoutKey).length > 0) {
+        nextHistory[dateKey] = entryWithoutKey;
+      }
+    }
+  });
+
+  return nextHistory;
+}
+
+function restoreCounterSettingsHistoryForKey(
+  currentHistory: CounterSettingsHistory,
+  previousHistory: CounterSettingsHistory,
+  key: keyof CounterData,
+  fallbackSettings: CounterSettings,
+) {
+  const nextHistory: CounterSettingsHistory = {};
+  const allDateKeys = new Set([...Object.keys(currentHistory), ...Object.keys(previousHistory)]);
+
+  allDateKeys.forEach((dateKey) => {
+    const currentEntry = currentHistory[dateKey];
+    const previousEntry = previousHistory[dateKey];
+
+    if (!currentEntry && !previousEntry) {
+      return;
+    }
+
+    const baseEntry = currentEntry ?? previousEntry ?? fallbackSettings;
+
+    nextHistory[dateKey] = key === 'card1'
+      ? {
+        ...baseEntry,
+        card1Label: (previousEntry ?? fallbackSettings).card1Label,
+        card1CountdownMode: (previousEntry ?? fallbackSettings).card1CountdownMode,
+        card1CountdownTarget: (previousEntry ?? fallbackSettings).card1CountdownTarget,
+        card1BackgroundImage: (previousEntry ?? fallbackSettings).card1BackgroundImage,
+      }
+      : {
+        ...baseEntry,
+        card2Label: (previousEntry ?? fallbackSettings).card2Label,
+        card2CountdownMode: (previousEntry ?? fallbackSettings).card2CountdownMode,
+        card2CountdownTarget: (previousEntry ?? fallbackSettings).card2CountdownTarget,
+        card2BackgroundImage: (previousEntry ?? fallbackSettings).card2BackgroundImage,
+      };
+  });
+
+  return nextHistory;
+}
+
 function buildPastCounterSnapshots(
   history: CounterHistory,
   snapshots: CounterSnapshots,
@@ -272,6 +359,13 @@ function useDailyPlannerState(): DailyPlannerContextValue {
   const [counterHistory, setCounterHistory] = useState<CounterHistory>({});
   const [counterSnapshots, setCounterSnapshots] = useState<CounterSnapshots>({});
   const [counterSettingsHistory, setCounterSettingsHistory] = useState<CounterSettingsHistory>({});
+  const [counterResetSnapshots, setCounterResetSnapshots] = useState<{
+    card1: CounterResetSnapshot | null;
+    card2: CounterResetSnapshot | null;
+  }>({
+    card1: null,
+    card2: null,
+  });
   const [tasks, setTasks] = useState<string[]>(TASKS);
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -446,6 +540,20 @@ function useDailyPlannerState(): DailyPlannerContextValue {
 
   const resetCounterCard = useCallback((key: keyof CounterData, nextCounterSettings: CounterSettings) => {
     const currentDateKey = getDateKey(selectedDate);
+    const activeCounterSettings = deriveCounterSettings(
+      counterSettingsHistory,
+      currentDateKey,
+      settings.counterSettings,
+    );
+
+    setCounterResetSnapshots((prev) => ({
+      ...prev,
+      [key]: {
+        counterHistory,
+        counterSettingsHistory,
+        activeCounterSettings,
+      },
+    }));
 
     setCounterHistory((prev) => {
       const nextHistory = Object.entries(prev).reduce<CounterHistory>((acc, [dateKey, values]) => {
@@ -504,7 +612,44 @@ function useDailyPlannerState(): DailyPlannerContextValue {
 
       return nextHistory;
     });
-  }, [getDateKey, selectedDate]);
+  }, [counterHistory, counterSettingsHistory, getDateKey, selectedDate, settings.counterSettings]);
+
+  const undoCounterReset = useCallback((key: keyof CounterData) => {
+    const snapshot = counterResetSnapshots[key];
+    if (!snapshot) {
+      return;
+    }
+
+    setCounterHistory((prev) => restoreCounterHistoryForKey(prev, snapshot.counterHistory, key));
+    setCounterSettingsHistory((prev) => restoreCounterSettingsHistoryForKey(
+      prev,
+      snapshot.counterSettingsHistory,
+      key,
+      snapshot.activeCounterSettings,
+    ));
+    setSettings((prev) => ({
+      ...prev,
+      counterSettings: key === 'card1'
+        ? {
+          ...prev.counterSettings,
+          card1Label: snapshot.activeCounterSettings.card1Label,
+          card1CountdownMode: snapshot.activeCounterSettings.card1CountdownMode,
+          card1CountdownTarget: snapshot.activeCounterSettings.card1CountdownTarget,
+          card1BackgroundImage: snapshot.activeCounterSettings.card1BackgroundImage,
+        }
+        : {
+          ...prev.counterSettings,
+          card2Label: snapshot.activeCounterSettings.card2Label,
+          card2CountdownMode: snapshot.activeCounterSettings.card2CountdownMode,
+          card2CountdownTarget: snapshot.activeCounterSettings.card2CountdownTarget,
+          card2BackgroundImage: snapshot.activeCounterSettings.card2BackgroundImage,
+        },
+    }));
+    setCounterResetSnapshots((prev) => ({
+      ...prev,
+      [key]: null,
+    }));
+  }, [counterResetSnapshots]);
 
   const updateSettings = useCallback((key: keyof SettingsData, value: any) => {
     if (key === "counterSettings") {
@@ -566,6 +711,11 @@ function useDailyPlannerState(): DailyPlannerContextValue {
     counterLabels,
     updateCounter,
     resetCounterCard,
+    undoCounterReset,
+    canUndoCounterReset: {
+      card1: Boolean(counterResetSnapshots.card1),
+      card2: Boolean(counterResetSnapshots.card2),
+    },
     settings,
     updateSettings,
     selectedDate,
