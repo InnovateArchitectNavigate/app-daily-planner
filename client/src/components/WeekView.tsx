@@ -1,4 +1,4 @@
-import { useDailyPlanner, TASKS } from '@/hooks/useDailyPlanner';
+import { useDailyPlanner } from '@/hooks/useDailyPlanner';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import { useState } from 'react';

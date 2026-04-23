@@ -1,4 +1,4 @@
-import { useDailyPlanner, TASKS } from '@/hooks/useDailyPlanner';
+import { useDailyPlanner } from '@/hooks/useDailyPlanner';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CounterCards } from './CounterCards';
@@ -18,7 +18,7 @@ interface TodayViewProps {
 // Sleep mode timeout will be read from settings
 
 export function TodayView({ onNavigateToWeek }: TodayViewProps) {
-  const { selectedDate, setSelectedDate, getDayData, toggleTask, toggleFreeDay, getDateKey, settings } = useDailyPlanner();
+  const { tasks, selectedDate, setSelectedDate, getDayData, toggleTask, toggleFreeDay, settings } = useDailyPlanner();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const selectedDateNormalized = new Date(selectedDate);
@@ -35,8 +35,8 @@ export function TodayView({ onNavigateToWeek }: TodayViewProps) {
   const sleepTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const completed = dayData.completed.filter(Boolean).length;
-  const total = TASKS.length;
-  const progressPercent = Math.round((completed / total) * 100);
+  const total = tasks.length;
+  const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   // Sleep mode inactivity detection
   useEffect(() => {
@@ -89,7 +89,7 @@ export function TodayView({ onNavigateToWeek }: TodayViewProps) {
       // Check if all tasks will be completed after this toggle
       const newCompleted = dayData.completed.map((c, i) => i === index ? true : c);
       const newCompletedCount = newCompleted.filter(Boolean).length;
-      if (newCompletedCount === TASKS.length) {
+      if (tasks.length > 0 && newCompletedCount === tasks.length) {
         // Trigger grand celebration after a short delay
         setTimeout(() => setShowGrandCelebration(true), 300);
       }
@@ -247,9 +247,14 @@ export function TodayView({ onNavigateToWeek }: TodayViewProps) {
                 isAnimating ? 'opacity-0' : 'opacity-100'
               }`}
             >
-              {TASKS.map((task, index) => (
+              {tasks.length === 0 && (
+                <div className="p-6 rounded-2xl bg-card border border-border text-center text-sm text-muted-foreground">
+                  No tasks yet. Open settings to add your first task.
+                </div>
+              )}
+              {tasks.map((task, index) => (
                 <div
-                  key={index}
+                  key={task.id}
                   className="flex items-start gap-4 p-4 rounded-2xl bg-card border border-border hover:border-accent/50 transition-all duration-200 group cursor-pointer"
                   onClick={(e) => handleTaskToggle(index, e)}
                 >
@@ -267,7 +272,7 @@ export function TodayView({ onNavigateToWeek }: TodayViewProps) {
                         : 'text-foreground'
                     }`}
                   >
-                    {task}
+                    {task.label}
                   </label>
                 </div>
               ))}

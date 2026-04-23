@@ -15,6 +15,15 @@ export const TASKS = [
   'Categorise Cards',
 ];
 
+export interface TaskItem {
+  id: string;
+  label: string;
+}
+
+export interface TaskHistory {
+  [dateKey: string]: TaskItem[];
+}
+
 export interface DayData {
   completed: boolean[];
   isFreeDay: boolean;
@@ -73,6 +82,8 @@ export interface PlannerData {
 }
 
 const STORAGE_KEY = 'daily-planner-data';
+const TASKS_STORAGE_KEY = 'daily-planner-tasks';
+const TASKS_HISTORY_STORAGE_KEY = 'daily-planner-tasks-history';
 const COUNTER_STORAGE_KEY = 'daily-planner-counters';
 const COUNTER_SNAPSHOT_STORAGE_KEY = 'daily-planner-counter-snapshots';
 const COUNTER_SETTINGS_HISTORY_STORAGE_KEY = 'daily-planner-counter-settings-history';
@@ -80,6 +91,7 @@ const SETTINGS_STORAGE_KEY = 'daily-planner-settings';
 
 interface DailyPlannerContextValue {
   data: PlannerData;
+  tasks: TaskItem[];
   counters: CounterData;
   counterSettings: CounterSettings;
   counterLabels: {
@@ -93,6 +105,7 @@ interface DailyPlannerContextValue {
     card1: boolean;
     card2: boolean;
   };
+  updateTasks: (tasks: TaskItem[]) => void;
   settings: SettingsData;
   updateSettings: (key: keyof SettingsData, value: SettingsData[keyof SettingsData]) => void;
   selectedDate: Date;
@@ -127,6 +140,148 @@ const defaultSettings: SettingsData = {
     card2BackgroundImage: DEFAULT_COUNTER_BACKGROUND_IMAGES.card2,
   },
 };
+
+function createTaskId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `task-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createDefaultTasks() {
+  return TASKS.map((label) => ({
+    id: createTaskId(),
+    label,
+  }));
+}
+
+function normalizeTasks(storedTasks: unknown): TaskItem[] {
+  if (!Array.isArray(storedTasks)) {
+    return createDefaultTasks();
+  }
+
+  const normalizedTasks = storedTasks.flatMap((task) => {
+    if (typeof task === 'string') {
+      const trimmedTask = task.trim();
+      return trimmedTask ? [{ id: createTaskId(), label: trimmedTask }] : [];
+    }
+
+    if (
+      task &&
+      typeof task === 'object' &&
+      'label' in task &&
+      typeof (task as { label: unknown }).label === 'string'
+    ) {
+      const label = (task as { label: string }).label.trim();
+      if (!label) {
+        return [];
+      }
+
+      const id = 'id' in task && typeof (task as { id?: unknown }).id === 'string' && (task as { id: string }).id
+        ? (task as { id: string }).id
+        : createTaskId();
+
+      return [{ id, label }];
+    }
+
+    return [];
+  });
+
+  return normalizedTasks;
+}
+
+function normalizeCompletedForTaskCount(completed: boolean[] | undefined, taskCount: number) {
+  const nextCompleted = Array.from({ length: taskCount }, (_, index) => Boolean(completed?.[index]));
+  return nextCompleted;
+}
+
+function deriveTasks(
+  history: TaskHistory,
+  dateKey: string,
+  fallbackTasks: TaskItem[],
+) {
+  const sortedKeys = Object.keys(history).sort();
+
+  if (sortedKeys.length === 0) {
+    return fallbackTasks;
+  }
+
+  const exactValue = history[dateKey];
+  if (exactValue) {
+    return exactValue;
+  }
+
+  const previousKey = [...sortedKeys].reverse().find((key) => key < dateKey);
+  if (previousKey) {
+    return history[previousKey];
+  }
+
+  const nextKey = sortedKeys.find((key) => key > dateKey);
+  if (nextKey) {
+    return history[nextKey];
+  }
+
+  return fallbackTasks;
+}
+
+function remapPlannerDataForTasks(data: PlannerData, previousTasks: TaskItem[], nextTasks: TaskItem[]) {
+  const previousTaskIndexMap = new Map(previousTasks.map((task, index) => [task.id, index]));
+
+  return Object.entries(data).reduce<PlannerData>((acc, [dateKey, dayData]) => {
+    acc[dateKey] = {
+      ...dayData,
+      completed: nextTasks.map((task) => {
+        const previousIndex = previousTaskIndexMap.get(task.id);
+        return previousIndex === undefined ? false : Boolean(dayData.completed[previousIndex]);
+      }),
+    };
+
+    return acc;
+  }, {});
+}
+
+function applyTaskHistoryFromDate(
+  history: TaskHistory,
+  currentDateKey: string,
+  nextTasks: TaskItem[],
+) {
+  const nextHistory = Object.entries(history).reduce<TaskHistory>((acc, [dateKey, value]) => {
+    if (dateKey < currentDateKey) {
+      acc[dateKey] = value;
+      return acc;
+    }
+
+    acc[dateKey] = nextTasks;
+    return acc;
+  }, {});
+
+  nextHistory[currentDateKey] = nextTasks;
+  return nextHistory;
+}
+
+function remapPlannerDataForTasksFromDate(
+  data: PlannerData,
+  currentDateKey: string,
+  taskHistory: TaskHistory,
+  fallbackTasks: TaskItem[],
+  nextTasks: TaskItem[],
+) {
+  return Object.entries(data).reduce<PlannerData>((acc, [dateKey, dayData]) => {
+    if (dateKey < currentDateKey) {
+      acc[dateKey] = dayData;
+      return acc;
+    }
+
+    const previousTasksForDate = deriveTasks(taskHistory, dateKey, fallbackTasks);
+    acc[dateKey] = remapPlannerDataForTasks(
+      { [dateKey]: dayData },
+      previousTasksForDate,
+      nextTasks,
+    )[dateKey];
+    return acc;
+  }, {});
+}
 
 const DailyPlannerContext = createContext<DailyPlannerContextValue | null>(null);
 
@@ -355,6 +510,8 @@ function buildPastCounterSnapshots(
 }
 
 function useDailyPlannerState(): DailyPlannerContextValue {
+  const [baseTasks, setBaseTasks] = useState<TaskItem[]>(createDefaultTasks);
+  const [taskHistory, setTaskHistory] = useState<TaskHistory>({});
   const [data, setData] = useState<PlannerData>({});
   const [counterHistory, setCounterHistory] = useState<CounterHistory>({});
   const [counterSnapshots, setCounterSnapshots] = useState<CounterSnapshots>({});
@@ -366,7 +523,6 @@ function useDailyPlannerState(): DailyPlannerContextValue {
     card1: null,
     card2: null,
   });
-  const [tasks, setTasks] = useState<string[]>(TASKS);
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(true);
@@ -381,6 +537,26 @@ function useDailyPlannerState(): DailyPlannerContextValue {
         setData(JSON.parse(stored));
       } catch (e) {
         console.error('Failed to parse stored data:', e);
+      }
+    }
+    const storedTasks = localStorage.getItem(TASKS_STORAGE_KEY);
+    if (storedTasks) {
+      try {
+        setBaseTasks(normalizeTasks(JSON.parse(storedTasks)));
+      } catch (e) {
+        console.error('Failed to parse stored tasks:', e);
+      }
+    }
+    const storedTaskHistory = localStorage.getItem(TASKS_HISTORY_STORAGE_KEY);
+    if (storedTaskHistory) {
+      try {
+        const parsedTaskHistory = JSON.parse(storedTaskHistory) as TaskHistory;
+        setTaskHistory(Object.entries(parsedTaskHistory).reduce<TaskHistory>((acc, [dateKey, value]) => {
+          acc[dateKey] = normalizeTasks(value);
+          return acc;
+        }, {}));
+      } catch (e) {
+        console.error('Failed to parse stored task history:', e);
       }
     }
     const storedCounters = localStorage.getItem(COUNTER_STORAGE_KEY);
@@ -436,6 +612,18 @@ function useDailyPlannerState(): DailyPlannerContextValue {
     }
   }, [data, isLoading]);
 
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(baseTasks));
+    }
+  }, [baseTasks, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(TASKS_HISTORY_STORAGE_KEY, JSON.stringify(taskHistory));
+    }
+  }, [isLoading, taskHistory]);
+
   // Save counters to localStorage whenever they change
   useEffect(() => {
     if (!isLoading) {
@@ -468,11 +656,15 @@ function useDailyPlannerState(): DailyPlannerContextValue {
 
   const getDayData = useCallback((date: Date): DayData => {
     const key = getDateKey(date);
-    return data[key] || {
-      completed: new Array(TASKS.length).fill(false),
+    const tasksForDate = deriveTasks(taskHistory, key, baseTasks);
+    return data[key] ? {
+      ...data[key],
+      completed: normalizeCompletedForTaskCount(data[key].completed, tasksForDate.length),
+    } : {
+      completed: new Array(tasksForDate.length).fill(false),
       isFreeDay: false,
     };
-  }, [data, getDateKey]);
+  }, [baseTasks, data, getDateKey, taskHistory]);
 
   const toggleTask = useCallback((date: Date, taskIndex: number) => {
     const key = getDateKey(date);
@@ -508,16 +700,17 @@ function useDailyPlannerState(): DailyPlannerContextValue {
       const date = new Date(startDate);
       date.setDate(date.getDate() + i);
       const dayData = getDayData(date);
+      const tasksForDate = deriveTasks(taskHistory, getDateKey(date), baseTasks);
       const completed = dayData.completed.filter(Boolean).length;
       week.push({
         date,
         completed,
-        total: TASKS.length,
+        total: tasksForDate.length,
         isFreeDay: dayData.isFreeDay,
       });
     }
     return week;
-  }, [getDayData]);
+  }, [baseTasks, getDateKey, getDayData, taskHistory]);
 
   const getWeekStart = useCallback((date: Date): Date => {
     const d = new Date(date);
@@ -651,6 +844,39 @@ function useDailyPlannerState(): DailyPlannerContextValue {
     }));
   }, [counterResetSnapshots]);
 
+  const updateTasks = useCallback((nextTasks: TaskItem[]) => {
+    const currentDateKey = getDateKey(selectedDate);
+    const sanitizedTasks = nextTasks
+      .map((task) => ({
+        id: task.id || createTaskId(),
+        label: task.label.trim(),
+      }))
+      .filter((task) => task.label.length > 0);
+
+    setTaskHistory((prev) => {
+      const previousDate = new Date(selectedDate);
+      previousDate.setDate(previousDate.getDate() - 1);
+      const previousDateKey = getDateKey(previousDate);
+      const currentTasks = deriveTasks(prev, currentDateKey, baseTasks);
+      const hasEarlierEntry = Object.keys(prev).some((historyDateKey) => historyDateKey < currentDateKey);
+      const nextHistory = { ...prev };
+
+      if (!hasEarlierEntry) {
+        nextHistory[previousDateKey] = currentTasks;
+      }
+
+      setData((previousData) => remapPlannerDataForTasksFromDate(
+        previousData,
+        currentDateKey,
+        nextHistory,
+        baseTasks,
+        sanitizedTasks,
+      ));
+
+      return applyTaskHistoryFromDate(nextHistory, currentDateKey, sanitizedTasks);
+    });
+  }, [baseTasks, getDateKey, selectedDate]);
+
   const updateSettings = useCallback((key: keyof SettingsData, value: any) => {
     if (key === "counterSettings") {
       const currentDateKey = getDateKey(selectedDate);
@@ -679,6 +905,7 @@ function useDailyPlannerState(): DailyPlannerContextValue {
   }, [counterHistory, getDateKey, selectedDate, settings]);
 
   const selectedDateKey = getDateKey(selectedDate);
+  const tasks = deriveTasks(taskHistory, selectedDateKey, baseTasks);
   const counterSettings = deriveCounterSettings(
     counterSettingsHistory,
     selectedDateKey,
@@ -706,6 +933,7 @@ function useDailyPlannerState(): DailyPlannerContextValue {
 
   return {
     data,
+    tasks,
     counters,
     counterSettings,
     counterLabels,
@@ -716,6 +944,7 @@ function useDailyPlannerState(): DailyPlannerContextValue {
       card1: Boolean(counterResetSnapshots.card1),
       card2: Boolean(counterResetSnapshots.card2),
     },
+    updateTasks,
     settings,
     updateSettings,
     selectedDate,
